@@ -5,7 +5,21 @@ const crypto = require('crypto');
 class InstanceManager {
   constructor() {
     this.instanceId = null;
-    this.instanceFilePath = path.join(__dirname, 'instance-id.json');
+    
+    // Try to use a writable directory for the instance file
+    let instanceDir = __dirname;
+    
+    // In portable apps, try to use the executable directory
+    if (process.env.PORTABLE_EXECUTABLE_DIR) {
+      instanceDir = process.env.PORTABLE_EXECUTABLE_DIR;
+    } else if (process.resourcesPath && process.resourcesPath !== process.cwd()) {
+      // In packaged apps, try to use a writable location
+      const os = require('os');
+      instanceDir = path.join(os.homedir(), '.electron-led-app');
+    }
+    
+    this.instanceDir = instanceDir;
+    this.instanceFilePath = path.join(instanceDir, 'instance-id.json');
   }
 
   /**
@@ -13,10 +27,26 @@ class InstanceManager {
    */
   async initialize() {
     try {
+      // Ensure instance directory exists
+      await this.ensureDirectoryExists();
+      
       await this.loadInstanceId();
       console.log(`Application instance ID: ${this.instanceId}`);
     } catch (error) {
       console.error('Error initializing instance manager:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Ensure the instance directory exists
+   */
+  async ensureDirectoryExists() {
+    try {
+      await fs.mkdir(this.instanceDir, { recursive: true });
+      console.log(`Instance directory ensured: ${this.instanceDir}`);
+    } catch (error) {
+      console.error('Error creating instance directory:', error);
       throw error;
     }
   }

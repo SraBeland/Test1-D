@@ -285,20 +285,31 @@ const createTray = () => {
 }
 
 app.whenReady().then(() => {
-  createWindow()
-  
-  // Create tray after window is ready
   try {
-    createTray();
-  } catch (error) {
-    console.log('Tray creation failed, continuing without tray:', error.message);
-  }
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+    createWindow()
+    
+    // Create tray after window is ready
+    try {
+      createTray();
+    } catch (error) {
+      console.log('Tray creation failed, continuing without tray:', error.message);
     }
-  })
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow()
+      }
+    })
+  } catch (error) {
+    console.error('Failed to initialize application:', error);
+    // Create a simple error dialog
+    const { dialog } = require('electron');
+    dialog.showErrorBox('Application Error', `Failed to start application: ${error.message}`);
+    app.quit();
+  }
+}).catch(error => {
+  console.error('App ready failed:', error);
+  app.quit();
 })
 
 app.on('window-all-closed', async () => {

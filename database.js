@@ -4,12 +4,29 @@ const path = require('path');
 class DatabaseManager {
   constructor(instanceId) {
     this.instanceId = instanceId;
-    this.dbPath = path.join(__dirname, 'database.json');
-    this.lockFile = path.join(__dirname, 'database.lock');
+    
+    // Try to use a writable directory for the database
+    let dbDir = __dirname;
+    
+    // In portable apps, try to use the executable directory
+    if (process.env.PORTABLE_EXECUTABLE_DIR) {
+      dbDir = process.env.PORTABLE_EXECUTABLE_DIR;
+    } else if (process.resourcesPath && process.resourcesPath !== process.cwd()) {
+      // In packaged apps, try to use a writable location
+      const os = require('os');
+      dbDir = path.join(os.homedir(), '.electron-led-app');
+    }
+    
+    this.dbDir = dbDir;
+    this.dbPath = path.join(dbDir, 'database.json');
+    this.lockFile = path.join(dbDir, 'database.lock');
   }
 
   async initialize() {
     try {
+      // Ensure database directory exists
+      await this.ensureDirectoryExists();
+      
       // Create database file if it doesn't exist
       await this.ensureDatabaseExists();
       
@@ -19,6 +36,16 @@ class DatabaseManager {
       console.log('JSON database initialized successfully');
     } catch (error) {
       console.error('Error initializing JSON database:', error);
+      throw error;
+    }
+  }
+
+  async ensureDirectoryExists() {
+    try {
+      await fs.mkdir(this.dbDir, { recursive: true });
+      console.log(`Database directory ensured: ${this.dbDir}`);
+    } catch (error) {
+      console.error('Error creating database directory:', error);
       throw error;
     }
   }

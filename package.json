@@ -1,16 +1,85 @@
 {
-  "name": "test1",
+  "name": "electron-led-app",
   "version": "1.0.0",
+  "description": "Electron App with LED-style tray icon and local JSON database",
   "main": "main.js",
+  "homepage": ".",
+  "author": "Your Name",
+  "license": "MIT",
   "scripts": {
     "start": "electron .",
+    "build": "electron-builder",
+    "build-win": "electron-builder --win",
+    "dist": "electron-builder --publish=never",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "devDependencies": {
-    "electron": "^37.1.0"
+  "build": {
+    "appId": "com.electronapp.ledapp",
+    "productName": "LED Electron App",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "database.js",
+      "instance-manager.js",
+      "renderer.js",
+      "settings.js",
+      "index.html",
+      "settings.html",
+      "tray-icon.png",
+      "tray-icon.ico",
+      "icon.png",
+      "icon.ico",
+      "icon-32.png",
+      "icon-48.png",
+      "icon-128.png",
+      "tray-icon.svg",
+      "icon.svg",
+      "node_modules/**/*"
+    ],
+    "extraFiles": [
+      {
+        "from": "README.md",
+        "to": "README.md"
+      },
+      {
+        "from": "TRAY_ICON_GUIDE.md",
+        "to": "TRAY_ICON_GUIDE.md"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LED Electron App",
+      "uninstallDisplayName": "LED Electron App",
+      "license": "LICENSE.txt",
+      "installerIcon": "icon.png",
+      "uninstallerIcon": "icon.png"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    }
   },
-  "dependencies": {}
+  "devDependencies": {
+    "electron": "^37.1.0",
+    "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "canvas": "^3.1.2"
+  }
 }

@@ -1,7 +1,7 @@
 {
-  "name": "electron-led-app",
+  "name": "miniwebplayer",
   "version": "1.0.0",
-  "description": "Electron App with LED-style tray icon and local JSON database",
+  "description": "MiniWebPlayer - Compact web player with LED-style tray icon and local JSON database",
   "main": "main.js",
   "homepage": ".",
   "author": "Your Name",
@@ -14,8 +14,8 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "build": {
-    "appId": "com.electronapp.ledapp",
-    "productName": "LED Electron App",
+    "appId": "com.miniwebplayer.app",
+    "productName": "MiniWebPlayer",
     "directories": {
       "output": "dist"
     },
@@ -65,11 +65,12 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "LED Electron App",
-      "uninstallDisplayName": "LED Electron App",
+      "shortcutName": "MiniWebPlayer",
+      "uninstallDisplayName": "MiniWebPlayer",
       "license": "LICENSE.txt",
-      "installerIcon": "icon.png",
-      "uninstallerIcon": "icon.png"
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "artifactName": "Installer-${productName}-${version}.exe"
     },
     "portable": {
       "artifactName": "${productName}-${version}-portable.exe"

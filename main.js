@@ -41,6 +41,20 @@ const createWindow = async () => {
       }
     })
 
+    // Ensure window stays on top
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    
+    // Re-enforce always on top when window is shown
+    mainWindow.on('show', () => {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      mainWindow.focus();
+    });
+    
+    // Re-enforce always on top when window gains focus
+    mainWindow.on('focus', () => {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    });
+
     // Load URL if set, otherwise load index.html
     const url = await dbManager.getUrl();
     if (url && url.trim() !== '') {
@@ -69,7 +83,18 @@ const createWindow = async () => {
     
     // Add context menu handler
     mainWindow.webContents.on('context-menu', (event, params) => {
+      const isAlwaysOnTop = mainWindow.isAlwaysOnTop();
       const contextMenu = Menu.buildFromTemplate([
+        {
+          label: isAlwaysOnTop ? '✓ Always on Top' : 'Always on Top',
+          click: () => {
+            const newState = !mainWindow.isAlwaysOnTop();
+            mainWindow.setAlwaysOnTop(newState, newState ? 'screen-saver' : 'normal');
+          }
+        },
+        {
+          type: 'separator'
+        },
         {
           label: 'Close App',
           click: async () => {
@@ -119,6 +144,19 @@ const createWindow = async () => {
         preload: path.join(__dirname, 'preload.js')
       }
     })
+    
+    // Ensure fallback window also stays on top
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    
+    // Re-enforce always on top for fallback window
+    mainWindow.on('show', () => {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      mainWindow.focus();
+    });
+    
+    mainWindow.on('focus', () => {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    });
     
     mainWindow.loadFile('index.html')
   }

@@ -52,6 +52,12 @@
     "win": {
       "target": [
         {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
           "target": "portable",
           "arch": [
             "x64"
@@ -68,8 +74,6 @@
       "shortcutName": "MiniWebPlayer",
       "uninstallDisplayName": "MiniWebPlayer",
       "license": "LICENSE.txt",
-      "installerIcon": "icon.ico",
-      "uninstallerIcon": "icon.ico",
       "artifactName": "Installer-${productName}-${version}.exe"
     },
     "portable": {

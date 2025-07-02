@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <meta
+      http-equiv="X-Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+    />
+    <title>Hello from Electron renderer!</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        user-select: none;
+        background-color: #808080;
+      }
+      
+      .context-menu {
+        position: fixed;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+        padding: 4px 0;
+        z-index: 1000;
+        display: none !important;
+        min-width: 150px;
+        visibility: hidden;
+      }
+      
+      .context-menu.show {
+        display: block !important;
+        visibility: visible;
+      }
+      
+      .context-menu-item {
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 14px;
+        border: none;
+        background: none;
+        width: 100%;
+        text-align: left;
+      }
+      
+      .context-menu-item:hover {
+        background-color: #f0f0f0;
+      }
+      
+      .context-menu-item:active {
+        background-color: #e0e0e0;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Hello from Electron renderer!</h1>
+    <p>👋 - Test2</p>
+    <p>Hello</p>
+    <p id="info"></p>
+    
+    <!-- Context Menu -->
+    <div id="contextMenu" class="context-menu">
+      <button class="context-menu-item" id="closeApp">Close the App</button>
+      <button class="context-menu-item" id="refreshPage">Refresh Page</button>
+      <button class="context-menu-item" id="editSettings">Edit Settings</button>
+    </div>
+  </body>
+    <script src="./renderer.js"></script>
+</html>

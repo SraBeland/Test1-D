@@ -1,15 +1,17 @@
-# Electron App with Neon Database Integration
+# Electron App with Local JSON Database
 
-This Electron application connects to a Neon PostgreSQL database to store and retrieve window position and size settings. Each application instance is uniquely identified by a GUID, allowing multiple instances to run simultaneously without conflicts.
+This Electron application uses a local JSON file to store and retrieve window position and size settings. Each application instance is uniquely identified by a GUID, allowing multiple instances to run simultaneously without conflicts.
 
 ## Features
 
 - Always-on-top window behavior
 - Automatic window position and size persistence
-- Database-backed settings storage using Neon
+- Local JSON file-based settings storage
 - **Unique instance identification with GUID**
 - **Multi-instance support** - multiple copies can run on different computers
-- Automatic database schema migration for existing installations
+- **System tray integration** - right-click context menu and tray icon
+- **URL loading capability** - load external websites instead of default page
+- No external database server required
 
 ## Setup Instructions
 
@@ -19,18 +21,7 @@ This Electron application connects to a Neon PostgreSQL database to store and re
 npm install
 ```
 
-### 2. Configure Neon Database
-
-1. Create a Neon account at [neon.tech](https://neon.tech)
-2. Create a new database project
-3. Copy your connection string from the Neon dashboard
-4. Update the `.env` file with your actual database connection string:
-
-```env
-DATABASE_URL=postgresql://username:password@ep-example-123456.us-east-1.aws.neon.tech/dbname?sslmode=require
-```
-
-### 3. Run the Application
+### 2. Run the Application
 
 ```bash
 npm start
@@ -44,45 +35,58 @@ npm start
 - Multiple installations on different computers will have different GUIDs
 
 ### Database Operations
-- On first run, the app creates a `window_settings` table in your Neon database
-- The window position and size are loaded from the database filtered by the instance GUID
-- Any changes to window position or size are automatically saved to the database with the instance GUID
-- Each instance maintains its own separate window settings in the shared database
+- On first run, the app creates a `database.json` file to store all settings
+- The window position and size are loaded from the JSON file filtered by the instance GUID
+- Any changes to window position or size are automatically saved to the JSON file with the instance GUID
+- Each instance maintains its own separate window settings in the shared JSON file
 
-## Database Schema
+## Database Structure
 
-The app creates a table with the following structure:
+The app creates a JSON file with the following structure:
 
-```sql
-CREATE TABLE window_settings (
-  id SERIAL PRIMARY KEY,
-  instance_id VARCHAR(36),           -- New: GUID to identify each app instance
-  x INTEGER NOT NULL,
-  y INTEGER NOT NULL,
-  width INTEGER NOT NULL,
-  height INTEGER NOT NULL,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Index for better performance when filtering by instance_id
-CREATE INDEX idx_window_settings_instance_id ON window_settings(instance_id);
+```json
+{
+  "instances": {
+    "instance-guid-1": {
+      "systemName": "System Name",
+      "windowSettings": {
+        "x": 100,
+        "y": 100,
+        "width": 800,
+        "height": 600,
+        "updatedAt": "2025-01-02T21:19:55.453Z"
+      }
+    },
+    "instance-guid-2": {
+      "systemName": "Another System",
+      "windowSettings": {
+        "x": 200,
+        "y": 150,
+        "width": 1024,
+        "height": 768,
+        "updatedAt": "2025-01-02T21:20:10.123Z"
+      }
+    }
+  }
+}
 ```
 
 ## Multi-Instance Support
 
-This application now supports multiple instances running simultaneously:
+This application supports multiple instances running simultaneously:
 
 - **Same Computer**: You can run multiple copies of the app, each with its own window settings
 - **Different Computers**: Each installation gets a unique GUID, so settings don't conflict
-- **Shared Database**: All instances can use the same Neon database while maintaining separate settings
-- **Automatic Migration**: Existing installations will automatically get the new instance_id column added
+- **Local Storage**: All instances store data in the local `database.json` file
+- **Portable**: The entire application and its data can be moved between systems
 
 ## Files Created
 
 - `instance-id.json` - Contains the unique GUID for this installation (do not delete this file)
+- `database.json` - Contains all window settings and system names for all instances
 
 ## Troubleshooting
 
-- If the database connection fails, the app will fall back to default window settings
-- Check the console for any database connection errors
-- Ensure your Neon database is active and the connection string is correct
+- If the JSON file becomes corrupted, the app will recreate it with default settings
+- Check the console for any file system errors
+- The app gracefully handles missing or corrupted database files by falling back to defaults

@@ -1,0 +1,38 @@
+
+<svg width="16" height="16" xmlns="http://www.w3.org/2000/svg">
+  <rect width="16" height="16" fill="#000000"/>
+  
+  <!-- LED dots in a pattern -->
+  <circle cx="2" cy="2" r="1" fill="#ff6600" opacity="1.0"/>
+  <circle cx="6" cy="2" r="1" fill="#ff6600" opacity="1.0"/>
+  <circle cx="10" cy="2" r="1" fill="#ff6600" opacity="1.0"/>
+  <circle cx="14" cy="2" r="1" fill="#ff6600" opacity="1.0"/>
+  
+  <circle cx="2" cy="6" r="1" fill="#ff6600" opacity="1.0"/>
+  <circle cx="6" cy="6" r="1" fill="#ff4400" opacity="0.6"/>
+  <circle cx="10" cy="6" r="1" fill="#ff4400" opacity="0.6"/>
+  <circle cx="14" cy="6" r="1" fill="#ff6600" opacity="1.0"/>
+  
+  <circle cx="2" cy="10" r="1" fill="#ff6600" opacity="1.0"/>
+  <circle cx="6" cy="10" r="1" fill="#ff4400" opacity="0.6"/>
+  <circle cx="10" cy="10" r="1" fill="#ff4400" opacity="0.6"/>
+  <circle cx="14" cy="10" r="1" fill="#ff6600" opacity="1.0"/>
+  
+  <circle cx="2" cy="14" r="1" fill="#ff6600" opacity="1.0"/>
+  <circle cx="6" cy="14" r="1" fill="#ff6600" opacity="1.0"/>
+  <circle cx="10" cy="14" r="1" fill="#ff6600" opacity="1.0"/>
+  <circle cx="14" cy="14" r="1" fill="#ff6600" opacity="1.0"/>
+  
+  <!-- Dim background LEDs -->
+  <circle cx="4" cy="4" r="0.5" fill="#ff2200" opacity="0.3"/>
+  <circle cx="8" cy="4" r="0.5" fill="#ff2200" opacity="0.3"/>
+  <circle cx="12" cy="4" r="0.5" fill="#ff2200" opacity="0.3"/>
+  
+  <circle cx="4" cy="8" r="0.5" fill="#ff2200" opacity="0.3"/>
+  <circle cx="8" cy="8" r="0.5" fill="#ff2200" opacity="0.3"/>
+  <circle cx="12" cy="8" r="0.5" fill="#ff2200" opacity="0.3"/>
+  
+  <circle cx="4" cy="12" r="0.5" fill="#ff2200" opacity="0.3"/>
+  <circle cx="8" cy="12" r="0.5" fill="#ff2200" opacity="0.3"/>
+  <circle cx="12" cy="12" r="0.5" fill="#ff2200" opacity="0.3"/>
+</svg>

@@ -15,5 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (settings) => ipcRenderer.invoke('save-settings', settings),
   returnToMain: () => ipcRenderer.invoke('return-to-main'),
   getSystemName: () => ipcRenderer.invoke('get-system-name'),
-  saveSystemName: (systemName) => ipcRenderer.invoke('save-system-name', systemName)
+  saveSystemName: (systemName) => ipcRenderer.invoke('save-system-name', systemName),
+  getUrl: () => ipcRenderer.invoke('get-url')
 })

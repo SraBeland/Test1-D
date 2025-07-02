@@ -1,87 +1,95 @@
-const { Pool } = require('pg');
-require('dotenv').config();
+const fs = require('fs').promises;
+const path = require('path');
 
 class DatabaseManager {
   constructor(instanceId) {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: {
-        rejectUnauthorized: false
-      }
-    });
     this.instanceId = instanceId;
+    this.dbPath = path.join(__dirname, 'database.json');
+    this.lockFile = path.join(__dirname, 'database.lock');
   }
 
   async initialize() {
     try {
-      // Create table if it doesn't exist
-      await this.pool.query(`
-        CREATE TABLE IF NOT EXISTS window_settings (
-          id SERIAL PRIMARY KEY,
-          instance_id VARCHAR(36),
-          system_name VARCHAR(255) DEFAULT 'Unnamed',
-          x INTEGER NOT NULL,
-          y INTEGER NOT NULL,
-          width INTEGER NOT NULL,
-          height INTEGER NOT NULL,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-      `);
+      // Create database file if it doesn't exist
+      await this.ensureDatabaseExists();
       
-      // Add instance_id column if it doesn't exist (for existing databases)
-      await this.pool.query(`
-        DO $$ 
-        BEGIN 
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_name = 'window_settings' AND column_name = 'instance_id'
-          ) THEN
-            ALTER TABLE window_settings ADD COLUMN instance_id VARCHAR(36);
-          END IF;
-        END $$;
-      `);
-      
-      // Add system_name column if it doesn't exist (for existing databases)
-      await this.pool.query(`
-        DO $$ 
-        BEGIN 
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.columns 
-            WHERE table_name = 'window_settings' AND column_name = 'system_name'
-          ) THEN
-            ALTER TABLE window_settings ADD COLUMN system_name VARCHAR(255) DEFAULT 'Unnamed';
-          END IF;
-        END $$;
-      `);
-      
-      // Create index on instance_id for better performance
-      await this.pool.query(`
-        CREATE INDEX IF NOT EXISTS idx_window_settings_instance_id 
-        ON window_settings(instance_id)
-      `);
-      
-      // Ensure default values exist
+      // Ensure default settings exist for this instance
       await this.ensureDefaultSettings();
       
-      console.log('Database initialized successfully');
+      console.log('JSON database initialized successfully');
     } catch (error) {
-      console.error('Error initializing database:', error);
+      console.error('Error initializing JSON database:', error);
+      throw error;
+    }
+  }
+
+  async ensureDatabaseExists() {
+    try {
+      await fs.access(this.dbPath);
+    } catch (error) {
+      // File doesn't exist, create it with empty structure
+      const initialData = {
+        instances: {}
+      };
+      await this.writeDatabase(initialData);
+      console.log('Created new database.json file');
+    }
+  }
+
+  async readDatabase() {
+    try {
+      const data = await fs.readFile(this.dbPath, 'utf8');
+      return JSON.parse(data);
+    } catch (error) {
+      console.error('Error reading database:', error);
+      // Return default structure if file is corrupted or missing
+      return { instances: {} };
+    }
+  }
+
+  async writeDatabase(data) {
+    try {
+      // Write to temporary file first, then rename for atomic operation
+      const tempPath = this.dbPath + '.tmp';
+      await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf8');
+      await fs.rename(tempPath, this.dbPath);
+    } catch (error) {
+      console.error('Error writing database:', error);
       throw error;
     }
   }
 
   async ensureDefaultSettings() {
     try {
-      const result = await this.pool.query(
-        'SELECT COUNT(*) FROM window_settings WHERE instance_id = $1',
-        [this.instanceId]
-      );
-      if (parseInt(result.rows[0].count) === 0) {
-        await this.pool.query(`
-          INSERT INTO window_settings (instance_id, x, y, width, height) 
-          VALUES ($1, $2, $3, $4, $5)
-        `, [this.instanceId, 100, 100, 800, 600]);
-        console.log(`Default window settings inserted for instance ${this.instanceId}`);
+      const db = await this.readDatabase();
+      
+      if (!db.instances[this.instanceId]) {
+        db.instances[this.instanceId] = {
+          systemName: 'Unnamed',
+          url: '',
+          windowSettings: {
+            x: 100,
+            y: 100,
+            width: 800,
+            height: 600,
+            updatedAt: new Date().toISOString()
+          }
+        };
+        
+        await this.writeDatabase(db);
+        console.log(`Default settings created for instance ${this.instanceId}`);
+      } else {
+        // Ensure existing instances have the URL field
+        let needsUpdate = false;
+        if (db.instances[this.instanceId].url === undefined) {
+          db.instances[this.instanceId].url = '';
+          needsUpdate = true;
+        }
+        
+        if (needsUpdate) {
+          await this.writeDatabase(db);
+          console.log(`Updated existing instance ${this.instanceId} with URL field`);
+        }
       }
     } catch (error) {
       console.error('Error ensuring default settings:', error);
@@ -90,16 +98,12 @@ class DatabaseManager {
 
   async getWindowSettings() {
     try {
-      const result = await this.pool.query(`
-        SELECT x, y, width, height 
-        FROM window_settings 
-        WHERE instance_id = $1
-        ORDER BY updated_at DESC 
-        LIMIT 1
-      `, [this.instanceId]);
+      const db = await this.readDatabase();
+      const instance = db.instances[this.instanceId];
       
-      if (result.rows.length > 0) {
-        return result.rows[0];
+      if (instance && instance.windowSettings) {
+        const { x, y, width, height } = instance.windowSettings;
+        return { x, y, width, height };
       } else {
         // Return default values if no settings found
         return { x: 100, y: 100, width: 800, height: 600 };
@@ -113,28 +117,27 @@ class DatabaseManager {
 
   async saveWindowSettings(x, y, width, height) {
     try {
-      // First, try to update existing record for this instance
-      const updateResult = await this.pool.query(`
-        UPDATE window_settings 
-        SET x = $1, y = $2, width = $3, height = $4, updated_at = CURRENT_TIMESTAMP
-        WHERE instance_id = $5 AND id = (
-          SELECT id FROM window_settings 
-          WHERE instance_id = $5 
-          ORDER BY updated_at DESC 
-          LIMIT 1
-        )
-      `, [x, y, width, height, this.instanceId]);
+      const db = await this.readDatabase();
       
-      // If no rows were updated, insert a new record
-      if (updateResult.rowCount === 0) {
-        await this.pool.query(`
-          INSERT INTO window_settings (instance_id, x, y, width, height) 
-          VALUES ($1, $2, $3, $4, $5)
-        `, [this.instanceId, x, y, width, height]);
-        console.log(`New window settings inserted for instance ${this.instanceId}: x=${x}, y=${y}, width=${width}, height=${height}`);
-      } else {
-        console.log(`Window settings updated for instance ${this.instanceId}: x=${x}, y=${y}, width=${width}, height=${height}`);
+      // Ensure instance exists
+      if (!db.instances[this.instanceId]) {
+        db.instances[this.instanceId] = {
+          systemName: 'Unnamed',
+          windowSettings: {}
+        };
       }
+      
+      // Update window settings
+      db.instances[this.instanceId].windowSettings = {
+        x,
+        y,
+        width,
+        height,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await this.writeDatabase(db);
+      console.log(`Window settings saved for instance ${this.instanceId}: x=${x}, y=${y}, width=${width}, height=${height}`);
     } catch (error) {
       console.error('Error saving window settings:', error);
     }
@@ -142,16 +145,11 @@ class DatabaseManager {
 
   async getSystemName() {
     try {
-      const result = await this.pool.query(`
-        SELECT system_name 
-        FROM window_settings 
-        WHERE instance_id = $1
-        ORDER BY updated_at DESC 
-        LIMIT 1
-      `, [this.instanceId]);
+      const db = await this.readDatabase();
+      const instance = db.instances[this.instanceId];
       
-      if (result.rows.length > 0 && result.rows[0].system_name) {
-        return result.rows[0].system_name;
+      if (instance && instance.systemName) {
+        return instance.systemName;
       } else {
         // Return default value if no system name found
         return 'Unnamed';
@@ -165,35 +163,92 @@ class DatabaseManager {
 
   async saveSystemName(systemName) {
     try {
-      // First, try to update existing record for this instance
-      const updateResult = await this.pool.query(`
-        UPDATE window_settings 
-        SET system_name = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE instance_id = $2 AND id = (
-          SELECT id FROM window_settings 
-          WHERE instance_id = $2 
-          ORDER BY updated_at DESC 
-          LIMIT 1
-        )
-      `, [systemName, this.instanceId]);
+      const db = await this.readDatabase();
       
-      // If no rows were updated, insert a new record
-      if (updateResult.rowCount === 0) {
-        await this.pool.query(`
-          INSERT INTO window_settings (instance_id, system_name, x, y, width, height) 
-          VALUES ($1, $2, $3, $4, $5, $6)
-        `, [this.instanceId, systemName, 100, 100, 800, 600]);
-        console.log(`New window settings with system name inserted for instance ${this.instanceId}: ${systemName}`);
-      } else {
-        console.log(`System name updated for instance ${this.instanceId}: ${systemName}`);
+      // Ensure instance exists
+      if (!db.instances[this.instanceId]) {
+        db.instances[this.instanceId] = {
+          systemName: 'Unnamed',
+          windowSettings: {
+            x: 100,
+            y: 100,
+            width: 800,
+            height: 600,
+            updatedAt: new Date().toISOString()
+          }
+        };
       }
+      
+      // Update system name
+      db.instances[this.instanceId].systemName = systemName;
+      
+      // Update timestamp if window settings exist
+      if (db.instances[this.instanceId].windowSettings) {
+        db.instances[this.instanceId].windowSettings.updatedAt = new Date().toISOString();
+      }
+      
+      await this.writeDatabase(db);
+      console.log(`System name saved for instance ${this.instanceId}: ${systemName}`);
     } catch (error) {
       console.error('Error saving system name:', error);
     }
   }
 
+  async getUrl() {
+    try {
+      const db = await this.readDatabase();
+      const instance = db.instances[this.instanceId];
+      
+      if (instance && instance.url) {
+        return instance.url;
+      } else {
+        // Return empty string if no URL found
+        return '';
+      }
+    } catch (error) {
+      console.error('Error getting URL:', error);
+      // Return empty string on error
+      return '';
+    }
+  }
+
+  async saveUrl(url) {
+    try {
+      const db = await this.readDatabase();
+      
+      // Ensure instance exists
+      if (!db.instances[this.instanceId]) {
+        db.instances[this.instanceId] = {
+          systemName: 'Unnamed',
+          url: '',
+          windowSettings: {
+            x: 100,
+            y: 100,
+            width: 800,
+            height: 600,
+            updatedAt: new Date().toISOString()
+          }
+        };
+      }
+      
+      // Update URL
+      db.instances[this.instanceId].url = url;
+      
+      // Update timestamp if window settings exist
+      if (db.instances[this.instanceId].windowSettings) {
+        db.instances[this.instanceId].windowSettings.updatedAt = new Date().toISOString();
+      }
+      
+      await this.writeDatabase(db);
+      console.log(`URL saved for instance ${this.instanceId}: ${url}`);
+    } catch (error) {
+      console.error('Error saving URL:', error);
+    }
+  }
+
   async close() {
-    await this.pool.end();
+    // No cleanup needed for JSON file storage
+    console.log('JSON database connection closed');
   }
 }
 

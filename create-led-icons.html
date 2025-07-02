@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LED Icon Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #222;
+            color: white;
+        }
+        canvas {
+            border: 1px solid #555;
+            margin: 10px;
+            background: #000;
+        }
+        .icon-container {
+            display: inline-block;
+            margin: 10px;
+            text-align: center;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>LED Sign Icon Generator</h1>
+    <p>Click the buttons below to download LED-style icons for your tray.</p>
+    
+    <div class="icon-container">
+        <h3>16x16 Tray Icon</h3>
+        <canvas id="canvas16" width="16" height="16"></canvas><br>
+        <button onclick="downloadIcon('canvas16', 'tray-icon-16x16.png')">Download PNG</button>
+    </div>
+    
+    <div class="icon-container">
+        <h3>32x32 Tray Icon</h3>
+        <canvas id="canvas32" width="32" height="32"></canvas><br>
+        <button onclick="downloadIcon('canvas32', 'tray-icon-32x32.png')">Download PNG</button>
+    </div>
+    
+    <div class="icon-container">
+        <h3>64x64 App Icon</h3>
+        <canvas id="canvas64" width="64" height="64"></canvas><br>
+        <button onclick="downloadIcon('canvas64', 'icon-64x64.png')">Download PNG</button>
+    </div>
+
+    <script>
+        function createLEDIcon(canvasId, size) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas with black background
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, size, size);
+            
+            // Calculate LED dot size and spacing based on canvas size
+            const dotSize = Math.max(1, Math.floor(size / 8));
+            const spacing = Math.max(2, Math.floor(size / 6));
+            
+            // Create LED matrix pattern
+            const rows = Math.floor(size / spacing);
+            const cols = Math.floor(size / spacing);
+            
+            // Center the pattern
+            const offsetX = (size - (cols - 1) * spacing) / 2;
+            const offsetY = (size - (rows - 1) * spacing) / 2;
+            
+            // Draw LED dots in a pattern that looks like a display
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const x = offsetX + col * spacing;
+                    const y = offsetY + row * spacing;
+                    
+                    // Create a pattern - make some LEDs brighter to form a shape
+                    let brightness = 0.2; // Dim background LEDs
+                    
+                    // Create a simple "LED" or "display" pattern
+                    if (size >= 32) {
+                        // For larger icons, create a more complex pattern
+                        if ((row === 1 || row === rows - 2) && col > 0 && col < cols - 1) {
+                            brightness = 1.0; // Top and bottom borders
+                        } else if ((col === 1 || col === cols - 2) && row > 0 && row < rows - 1) {
+                            brightness = 1.0; // Left and right borders
+                        } else if (row === Math.floor(rows / 2) && col > 1 && col < cols - 2) {
+                            brightness = 0.8; // Middle line
+                        }
+                    } else {
+                        // For smaller icons, simpler pattern
+                        if (row === 0 || row === rows - 1 || col === 0 || col === cols - 1) {
+                            brightness = 1.0; // Border
+                        } else if (row === Math.floor(rows / 2) || col === Math.floor(cols / 2)) {
+                            brightness = 0.6; // Cross pattern
+                        }
+                    }
+                    
+                    // Draw LED dot with glow effect
+                    const red = Math.floor(255 * brightness);
+                    const green = Math.floor(100 * brightness);
+                    const blue = Math.floor(50 * brightness);
+                    
+                    // Main LED dot
+                    ctx.fillStyle = `rgb(${red}, ${green}, ${blue})`;
+                    ctx.beginPath();
+                    ctx.arc(x, y, dotSize / 2, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Add glow effect for bright LEDs
+                    if (brightness > 0.5) {
+                        ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, 0.3)`;
+                        ctx.beginPath();
+                        ctx.arc(x, y, dotSize, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+        
+        function downloadIcon(canvasId, filename) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+        
+        // Generate all icons when page loads
+        window.onload = function() {
+            createLEDIcon('canvas16', 16);
+            createLEDIcon('canvas32', 32);
+            createLEDIcon('canvas64', 64);
+        };
+    </script>
+</body>
+</html>

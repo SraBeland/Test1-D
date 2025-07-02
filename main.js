@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron/main')
+const { app, BrowserWindow, ipcMain, dialog, Menu, Tray } = require('electron/main')
 const path = require('node:path')
 const DatabaseManager = require('./database')
 const InstanceManager = require('./instance-manager')
@@ -6,6 +6,7 @@ const InstanceManager = require('./instance-manager')
 let dbManager;
 let instanceManager;
 let mainWindow;
+let tray;
 
 const createWindow = async () => {
   try {
@@ -33,11 +34,25 @@ const createWindow = async () => {
       hasShadow: false,
       thickFrame: false,
       webPreferences: {
-        preload: path.join(__dirname, 'preload.js')
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        enableRemoteModule: false,
+        nodeIntegration: false
       }
     })
 
-    mainWindow.loadFile('index.html')
+    // Load URL if set, otherwise load index.html
+    const url = await dbManager.getUrl();
+    if (url && url.trim() !== '') {
+      let loadUrl = url.trim();
+      // Add protocol if missing
+      if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
+        loadUrl = 'https://' + loadUrl;
+      }
+      mainWindow.loadURL(loadUrl);
+    } else {
+      mainWindow.loadFile('index.html');
+    }
     
     // Save window position and size when moved or resized
     mainWindow.on('moved', saveWindowSettings);
@@ -51,6 +66,40 @@ const createWindow = async () => {
     
     // Save settings when app is about to quit
     mainWindow.on('before-quit', saveWindowSettings);
+    
+    // Add context menu handler
+    mainWindow.webContents.on('context-menu', (event, params) => {
+      const contextMenu = Menu.buildFromTemplate([
+        {
+          label: 'Close App',
+          click: async () => {
+            await saveWindowSettings();
+            if (dbManager) {
+              await dbManager.close();
+            }
+            app.exit(0);
+          }
+        },
+        {
+          label: 'Refresh Page',
+          click: () => {
+            mainWindow.reload();
+          }
+        },
+        {
+          label: 'Edit Settings',
+          click: () => {
+            mainWindow.loadFile('settings.html');
+          }
+        }
+      ]);
+      
+      contextMenu.popup({
+        window: mainWindow,
+        x: params.x,
+        y: params.y
+      });
+    });
     
   } catch (error) {
     console.error('Error creating window:', error);
@@ -86,8 +135,164 @@ const saveWindowSettings = async () => {
   }
 }
 
+const createTray = () => {
+  try {
+    // Use nativeImage to create a simple icon
+    const { nativeImage } = require('electron');
+    const fs = require('fs');
+    
+    // List of possible icon files in order of preference
+    const iconPaths = [
+      path.join(__dirname, 'tray-icon.ico'),
+      path.join(__dirname, 'tray-icon.png'),
+      path.join(__dirname, 'tray-icon.svg'),
+      path.join(__dirname, 'icon.ico'),
+      path.join(__dirname, 'icon.png'),
+      path.join(__dirname, 'icon.svg')
+    ];
+    
+    let trayIcon;
+    let iconFound = false;
+    
+    // Try to find and load an icon file
+    for (const iconPath of iconPaths) {
+      try {
+        if (fs.existsSync(iconPath)) {
+          trayIcon = nativeImage.createFromPath(iconPath);
+          if (!trayIcon.isEmpty()) {
+            console.log(`Tray icon loaded from: ${iconPath}`);
+            iconFound = true;
+            break;
+          }
+        }
+      } catch (error) {
+        console.log(`Failed to load icon from ${iconPath}:`, error.message);
+      }
+    }
+    
+    // If no icon found, create a simple fallback icon
+    if (!iconFound) {
+      try {
+        // Create a simple 16x16 bitmap manually
+        const width = 16;
+        const height = 16;
+        const channels = 4; // RGBA
+        const buffer = Buffer.alloc(width * height * channels);
+        
+        // Fill with LED pattern
+        for (let y = 0; y < height; y++) {
+          for (let x = 0; x < width; x++) {
+            const index = (y * width + x) * channels;
+            
+            // Default to black background
+            let r = 0, g = 0, b = 0, a = 255;
+            
+            // Create LED border pattern
+            if (x === 0 || x === width - 1 || y === 0 || y === height - 1) {
+              // Orange border
+              r = 255; g = 102; b = 0;
+            } else if ((x >= 6 && x <= 9) && (y >= 6 && y <= 9)) {
+              // Center square
+              r = 255; g = 68; b = 0;
+            } else if ((x + y) % 4 === 0) {
+              // Dim LEDs
+              r = 64; g = 16; b = 0;
+            }
+            
+            buffer[index] = r;     // Red
+            buffer[index + 1] = g; // Green
+            buffer[index + 2] = b; // Blue
+            buffer[index + 3] = a; // Alpha
+          }
+        }
+        
+        trayIcon = nativeImage.createFromBuffer(buffer, { width, height });
+        console.log('Created fallback LED-style tray icon');
+      } catch (error) {
+        // If bitmap creation fails, use empty icon
+        trayIcon = nativeImage.createEmpty();
+        console.log('No custom tray icon found, using system default. See TRAY_ICON_GUIDE.md for setup instructions.');
+      }
+    }
+    
+    tray = new Tray(trayIcon);
+    
+    if (!tray.isDestroyed()) {
+      const contextMenu = Menu.buildFromTemplate([
+        {
+          label: 'Show Window',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.show();
+              mainWindow.focus();
+            }
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Refresh Page',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.reload();
+            }
+          }
+        },
+        {
+          label: 'Edit Settings',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.loadFile('settings.html');
+              mainWindow.show();
+              mainWindow.focus();
+            }
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Close App',
+          click: async () => {
+            await saveWindowSettings();
+            if (dbManager) {
+              await dbManager.close();
+            }
+            app.exit(0);
+          }
+        }
+      ]);
+      
+      tray.setContextMenu(contextMenu);
+      tray.setToolTip('Electron App');
+      
+      // Double-click to show/hide window
+      tray.on('double-click', () => {
+        if (mainWindow) {
+          if (mainWindow.isVisible()) {
+            mainWindow.hide();
+          } else {
+            mainWindow.show();
+            mainWindow.focus();
+          }
+        }
+      });
+    }
+  } catch (error) {
+    console.log('Tray creation failed:', error.message);
+  }
+}
+
 app.whenReady().then(() => {
   createWindow()
+  
+  // Create tray after window is ready
+  try {
+    createTray();
+  } catch (error) {
+    console.log('Tray creation failed, continuing without tray:', error.message);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -168,6 +373,23 @@ ipcMain.handle('save-settings', async (event, settings) => {
       // Save to database
       await dbManager.saveWindowSettings(settings.x, settings.y, settings.width, settings.height);
       
+      // Save URL if provided
+      if (settings.url !== undefined) {
+        await dbManager.saveUrl(settings.url);
+        
+        // Load the new URL or return to index.html
+        if (settings.url && settings.url.trim() !== '') {
+          let url = settings.url.trim();
+          // Add protocol if missing
+          if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+          }
+          mainWindow.loadURL(url);
+        } else {
+          mainWindow.loadFile('index.html');
+        }
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -216,6 +438,19 @@ ipcMain.handle('save-system-name', async (event, systemName) => {
       return { success: true };
     } catch (error) {
       console.error('Error saving system name:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false, error: 'Database manager not available' };
+})
+
+ipcMain.handle('get-url', async () => {
+  if (dbManager) {
+    try {
+      const url = await dbManager.getUrl();
+      return { success: true, url };
+    } catch (error) {
+      console.error('Error getting URL:', error);
       return { success: false, error: error.message };
     }
   }

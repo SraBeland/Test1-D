@@ -10,12 +10,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const systemNameResult = await window.electronAPI.getSystemName();
     const systemName = systemNameResult.success ? systemNameResult.systemName : 'Unnamed';
     
+    // Get current URL
+    const urlResult = await window.electronAPI.getUrl();
+    const url = urlResult.success ? urlResult.url : '';
+    
     // Display current values
     document.getElementById('currentValues').innerHTML = 
-      `System: ${systemName}<br>X: ${currentSettings.x}, Y: ${currentSettings.y}, Width: ${currentSettings.width}, Height: ${currentSettings.height}`;
+      `System: ${systemName}<br>URL: ${url || '(default page)'}<br>X: ${currentSettings.x}, Y: ${currentSettings.y}, Width: ${currentSettings.width}, Height: ${currentSettings.height}`;
     
     // Populate form fields with current values
     document.getElementById('systemName').value = systemName;
+    document.getElementById('url').value = url;
     document.getElementById('xPosition').value = currentSettings.x;
     document.getElementById('yPosition').value = currentSettings.y;
     document.getElementById('windowWidth').value = currentSettings.width;
@@ -36,7 +41,8 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
     x: parseInt(formData.get('x')),
     y: parseInt(formData.get('y')),
     width: parseInt(formData.get('width')),
-    height: parseInt(formData.get('height'))
+    height: parseInt(formData.get('height')),
+    url: formData.get('url').trim()
   };
   
   const systemName = formData.get('systemName').trim();
@@ -47,14 +53,11 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
       await window.electronAPI.saveSystemName(systemName);
     }
     
-    // Save the window settings
+    // Save the window settings and URL
     await window.electronAPI.saveSettings(settings);
     
-    // Wait a moment to let user see the window resize/move
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Return to main page
-    await window.electronAPI.returnToMain();
+    // The URL will be loaded automatically by the main process
+    // No need to return to main since the URL loading handles the navigation
     
   } catch (error) {
     console.error('Error saving settings:', error);

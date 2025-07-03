@@ -8,26 +8,140 @@
       http-equiv="X-Content-Security-Policy"
       content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
     />
-    <title>Hello from Electron renderer!</title>
+    <title>MiniWebPlayer</title>
     <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
       body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         user-select: none;
-        background-color: #808080;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      
+      .container {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 3rem 2.5rem;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+        text-align: center;
+        max-width: 450px;
+        width: 90%;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      
+      .logo {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 20px;
+        margin: 0 auto 1.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+      }
+      
+      .logo::before {
+        content: '▶';
+        color: white;
+        font-size: 2rem;
+        font-weight: bold;
+      }
+      
+      h1 {
+        color: #2d3748;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      
+      .subtitle {
+        color: #4a5568;
+        font-size: 1.1rem;
+        font-weight: 500;
+        margin-bottom: 2rem;
+      }
+      
+      .info-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+      
+      .info-card {
+        background: rgba(102, 126, 234, 0.1);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-radius: 12px;
+        padding: 1rem;
+        color: #4a5568;
+        font-size: 0.95rem;
+      }
+      
+      .info-card.demo {
+        background: rgba(118, 75, 162, 0.1);
+        border-color: rgba(118, 75, 162, 0.2);
+      }
+      
+      .info-card.version {
+        background: rgba(72, 187, 120, 0.1);
+        border-color: rgba(72, 187, 120, 0.2);
+      }
+      
+      .instruction {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+        color: white;
+        padding: 1rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 500;
+        font-size: 1rem;
+        box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+        margin-top: 1rem;
+      }
+      
+      .pulse {
+        animation: pulse 2s infinite;
+      }
+      
+      @keyframes pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.05);
+        }
+        100% {
+          transform: scale(1);
+        }
       }
       
       .context-menu {
         position: fixed;
-        background: white;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
-        padding: 4px 0;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 0, 0, 0.1);
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+        padding: 8px 0;
         z-index: 1000;
         display: none !important;
-        min-width: 150px;
+        min-width: 180px;
         visibility: hidden;
+        overflow: hidden;
       }
       
       .context-menu.show {
@@ -36,36 +150,133 @@
       }
       
       .context-menu-item {
-        padding: 8px 16px;
+        padding: 12px 20px;
         cursor: pointer;
         font-size: 14px;
+        font-weight: 500;
         border: none;
         background: none;
         width: 100%;
         text-align: left;
+        color: #4a5568;
+        transition: all 0.2s ease;
       }
       
       .context-menu-item:hover {
-        background-color: #f0f0f0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        transform: translateX(5px);
       }
       
       .context-menu-item:active {
-        background-color: #e0e0e0;
+        transform: translateX(3px);
+      }
+      
+      /* Floating particles effect */
+      .particles {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        top: 0;
+        left: 0;
+        z-index: -1;
+      }
+      
+      .particle {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        animation: float 15s infinite linear;
+      }
+      
+      .particle:nth-child(1) { width: 10px; height: 10px; left: 20%; animation-delay: 0s; }
+      .particle:nth-child(2) { width: 15px; height: 15px; left: 40%; animation-delay: 2s; }
+      .particle:nth-child(3) { width: 8px; height: 8px; left: 60%; animation-delay: 4s; }
+      .particle:nth-child(4) { width: 12px; height: 12px; left: 80%; animation-delay: 6s; }
+      .particle:nth-child(5) { width: 6px; height: 6px; left: 10%; animation-delay: 8s; }
+      
+      @keyframes float {
+        0% {
+          transform: translateY(100vh) rotate(0deg);
+          opacity: 0;
+        }
+        10% {
+          opacity: 1;
+        }
+        90% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-100vh) rotate(360deg);
+          opacity: 0;
+        }
+      }
+      
+      @media (max-width: 480px) {
+        .container {
+          padding: 2rem 1.5rem;
+          margin: 1rem;
+        }
+        
+        h1 {
+          font-size: 2rem;
+        }
+        
+        .logo {
+          width: 60px;
+          height: 60px;
+        }
+        
+        .logo::before {
+          font-size: 1.5rem;
+        }
       }
     </style>
   </head>
   <body>
-    <h1>Hello from Electron renderer!</h1>
-    <p>👋 - Test5</p>
-    <p>Hello</p>
-    <p id="info"></p>
+    <!-- Floating particles background -->
+    <div class="particles">
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+      <div class="particle"></div>
+    </div>
+    
+    <div class="container">
+      <div class="logo"></div>
+      
+      <h1>MiniWebPlayer</h1>
+      <div class="subtitle">Lightweight Web Browser</div>
+      
+      <div class="info-cards">
+        <div class="info-card demo">
+          <strong>SRA Demo</strong> - Demonstration Application
+        </div>
+        
+        <div class="info-card">
+          <strong>Powered by AI</strong> - Written by Artificial Intelligence<br>
+          <strong>Designed by</strong> Graham Beland
+        </div>
+        
+        <div class="info-card version">
+          <strong>Version 1.0.0</strong> - Current Release
+        </div>
+      </div>
+      
+      <div class="instruction pulse">
+        💫 Right-click for options menu
+      </div>
+    </div>
     
     <!-- Context Menu -->
     <div id="contextMenu" class="context-menu">
-      <button class="context-menu-item" id="closeApp">Close the App</button>
-      <button class="context-menu-item" id="refreshPage">Refresh Page</button>
-      <button class="context-menu-item" id="editSettings">Edit Settings</button>
+      <button class="context-menu-item" id="closeApp">🚪 Close the App</button>
+      <button class="context-menu-item" id="refreshPage">🔄 Refresh Page</button>
+      <button class="context-menu-item" id="editSettings">⚙️ Edit Settings</button>
     </div>
-  </body>
+
     <script src="./renderer.js"></script>
+  </body>
 </html>

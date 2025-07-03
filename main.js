@@ -36,6 +36,13 @@ const createLoadingWindow = () => {
     loadingWindow.focus();
   });
 
+  // Auto-close loading window after 3 seconds maximum
+  setTimeout(() => {
+    if (loadingWindow && !loadingWindow.isDestroyed()) {
+      loadingWindow.close();
+    }
+  }, 3000);
+
   return loadingWindow;
 };
 

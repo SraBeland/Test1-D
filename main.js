@@ -6,7 +6,36 @@ const InstanceManager = require('./instance-manager')
 let dbManager;
 let instanceManager;
 let mainWindow;
+let loadingWindow;
 let tray;
+
+const createLoadingWindow = () => {
+  loadingWindow = new BrowserWindow({
+    width: 400,
+    height: 300,
+    frame: false,
+    alwaysOnTop: true,
+    transparent: true,
+    resizable: false,
+    movable: true,
+    center: true,
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  loadingWindow.loadFile('loading.html');
+  
+  // Show loading window immediately
+  loadingWindow.once('ready-to-show', () => {
+    loadingWindow.show();
+    loadingWindow.focus();
+  });
+
+  return loadingWindow;
+};
 
 const createWindow = async () => {
   try {
@@ -33,6 +62,7 @@ const createWindow = async () => {
       transparent: true,
       hasShadow: false,
       thickFrame: false,
+      show: false,
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
@@ -140,6 +170,7 @@ const createWindow = async () => {
       transparent: true,
       hasShadow: false,
       thickFrame: false,
+      show: false,
       webPreferences: {
         preload: path.join(__dirname, 'preload.js')
       }
@@ -322,9 +353,23 @@ const createTray = () => {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   try {
-    createWindow()
+    // Show loading window immediately
+    createLoadingWindow();
+    
+    // Create main window in background
+    await createWindow();
+    
+    // Wait for main window to be ready
+    mainWindow.once('ready-to-show', () => {
+      // Close loading window and show main window
+      if (loadingWindow && !loadingWindow.isDestroyed()) {
+        loadingWindow.close();
+      }
+      mainWindow.show();
+      mainWindow.focus();
+    });
     
     // Create tray after window is ready
     try {
@@ -335,11 +380,25 @@ app.whenReady().then(() => {
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow()
+        // Show loading window for reactivation too
+        createLoadingWindow();
+        createWindow().then(() => {
+          mainWindow.once('ready-to-show', () => {
+            if (loadingWindow && !loadingWindow.isDestroyed()) {
+              loadingWindow.close();
+            }
+            mainWindow.show();
+            mainWindow.focus();
+          });
+        });
       }
     })
   } catch (error) {
     console.error('Failed to initialize application:', error);
+    // Close loading window if it exists
+    if (loadingWindow && !loadingWindow.isDestroyed()) {
+      loadingWindow.close();
+    }
     // Create a simple error dialog
     const { dialog } = require('electron');
     dialog.showErrorBox('Application Error', `Failed to start application: ${error.message}`);

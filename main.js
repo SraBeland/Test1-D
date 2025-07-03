@@ -533,9 +533,14 @@ app.whenReady().then(async () => {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         enableRemoteModule: false,
-        nodeIntegration: false
+        nodeIntegration: false,
+        webSecurity: false, // Allow faster loading
+        allowRunningInsecureContent: true // Speed up mixed content
       }
     });
+
+    // Set user agent to prevent bot blocking
+    mainWindow.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
     // Ensure window stays on top
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -615,10 +620,16 @@ app.whenReady().then(async () => {
             await mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(loadingHtml)}`);
             console.log('Loading indicator shown');
             
-            // Then load the actual URL
+            // Then load the actual URL with timeout
             setTimeout(async () => {
               try {
-                await mainWindow.loadURL(loadUrl);
+                // Set up timeout for URL loading
+                const loadPromise = mainWindow.loadURL(loadUrl);
+                const timeoutPromise = new Promise((_, reject) => {
+                  setTimeout(() => reject(new Error('URL load timeout')), 10000); // 10 second timeout
+                });
+                
+                await Promise.race([loadPromise, timeoutPromise]);
                 console.log('Quick URL loaded successfully');
               } catch (urlError) {
                 console.error('Quick URL load failed:', urlError);

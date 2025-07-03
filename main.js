@@ -443,17 +443,27 @@ app.whenReady().then(async () => {
     // Wait for main window creation only
     await initPromises[0];
     
-    // Show main window as soon as it's ready
+    // Show main window as soon as it's ready, but keep loading window until webpage loads
     mainWindow.once('ready-to-show', () => {
-      // Close loading window and show main window immediately
-      if (loadingWindow && !loadingWindow.isDestroyed()) {
-        loadingWindow.close();
-      }
       mainWindow.show();
       mainWindow.focus();
       
       // Setup refresh timer only (URL already loaded during window creation)
       setupRefreshTimer();
+    });
+
+    // Close loading window only when the webpage content has finished loading
+    mainWindow.webContents.once('did-finish-load', () => {
+      if (loadingWindow && !loadingWindow.isDestroyed()) {
+        loadingWindow.close();
+      }
+    });
+
+    // Also close loading window on navigation failure
+    mainWindow.webContents.once('did-fail-load', () => {
+      if (loadingWindow && !loadingWindow.isDestroyed()) {
+        loadingWindow.close();
+      }
     });
 
     app.on('activate', () => {

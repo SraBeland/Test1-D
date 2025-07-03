@@ -880,8 +880,18 @@ ipcMain.handle('save-settings', async (event, settings) => {
           if (!url.startsWith('http://') && !url.startsWith('https://')) {
             url = 'https://' + url;
           }
-          mainWindow.loadURL(url);
+          
+          try {
+            console.log(`Loading new URL from settings: ${url}`);
+            await mainWindow.loadURL(url);
+            console.log('Settings URL loaded successfully');
+          } catch (urlError) {
+            console.error('Settings URL load failed:', urlError);
+            console.log('Bad URL in settings, falling back to index.html');
+            mainWindow.loadFile('index.html');
+          }
         } else {
+          console.log('Empty URL in settings, loading index.html');
           mainWindow.loadFile('index.html');
         }
       }

@@ -547,17 +547,23 @@ app.whenReady().then(async () => {
     // Initialize everything in background
     (async () => {
       try {
+        console.log('Starting background initialization...');
+        
         instanceManager = new InstanceManager();
         await instanceManager.initialize();
+        console.log('Instance manager initialized');
         
         dbManager = new DatabaseManager(instanceManager.getInstanceId());
         await dbManager.initialize();
+        console.log('Database manager initialized');
         
         const startupData = await dbManager.getStartupData();
+        console.log('Startup data retrieved:', startupData);
         
         // Update window with saved settings
         if (startupData.windowSettings) {
           const { x, y, width, height } = startupData.windowSettings;
+          console.log(`Updating window bounds: x=${x}, y=${y}, width=${width}, height=${height}`);
           mainWindow.setBounds({ x, y, width, height });
         }
         
@@ -568,14 +574,30 @@ app.whenReady().then(async () => {
             loadUrl = 'https://' + loadUrl;
           }
           console.log(`Loading saved URL: ${loadUrl}`);
-          mainWindow.loadURL(loadUrl);
+          
+          try {
+            await mainWindow.loadURL(loadUrl);
+            console.log('URL loaded successfully');
+          } catch (urlError) {
+            console.error('Failed to load URL:', urlError);
+            console.log('Falling back to index.html');
+            mainWindow.loadFile('index.html');
+          }
+        } else {
+          console.log('No URL configured, keeping index.html');
         }
         
         // Setup refresh timer
-        setupRefreshTimerWithInterval(startupData.refreshInterval);
+        if (startupData.refreshInterval) {
+          console.log(`Setting up refresh timer: ${startupData.refreshInterval} seconds`);
+          setupRefreshTimerWithInterval(startupData.refreshInterval);
+        }
+        
+        console.log('Background initialization completed successfully');
         
       } catch (error) {
         console.error('Background initialization failed:', error);
+        console.log('Continuing with default settings');
       }
     })();
     

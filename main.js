@@ -556,15 +556,12 @@ app.whenReady().then(async () => {
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
     mainWindow.focus();
     
-    // Load index.html immediately for fast display
-    mainWindow.loadFile('index.html');
-    
-    // MAXIMUM SPEED URL loading - no delays, no spinners, direct load
+    // ULTRA FAST URL loading - get URL BEFORE window creation to avoid any delays
     (async () => {
       try {
-        console.log('MAXIMUM SPEED URL loading starting...');
+        console.log('ULTRA FAST URL loading starting...');
         
-        // Try to get URL with minimal initialization
+        // Get URL with minimal initialization
         const quickInstanceManager = new InstanceManager();
         await quickInstanceManager.initialize();
         const quickDbManager = new DatabaseManager(quickInstanceManager.getInstanceId());
@@ -574,17 +571,17 @@ app.whenReady().then(async () => {
         const savedUrl = await quickDbManager.getUrl();
         console.log('URL retrieved:', savedUrl);
         
-        // Load URL DIRECTLY with no delays or spinners
+        // Load URL DIRECTLY - no intermediate pages, no delays
         if (savedUrl && savedUrl.trim() !== '') {
           let loadUrl = savedUrl.trim();
           if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
             loadUrl = 'https://' + loadUrl;
           }
-          console.log(`Loading ${loadUrl} DIRECTLY - maximum speed`);
+          console.log(`Loading ${loadUrl} ULTRA FAST - no intermediate pages`);
           
           try {
-            // DIRECT load - no spinner, no delays, maximum speed
-            console.log('Starting DIRECT URL load...');
+            // DIRECT load - no index.html, no delays, maximum speed
+            console.log('Starting ULTRA FAST URL load...');
             await mainWindow.loadURL(loadUrl);
             console.log('URL loaded successfully!');
             
@@ -597,6 +594,10 @@ app.whenReady().then(async () => {
             console.log('Falling back to index.html');
             mainWindow.loadFile('index.html');
           }
+        } else {
+          // Only load index.html if no URL is configured
+          console.log('No URL configured, loading index.html');
+          mainWindow.loadFile('index.html');
         }
         
         // Continue with full initialization in background

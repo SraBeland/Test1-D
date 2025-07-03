@@ -1,6 +1,6 @@
-# Electron App with Local JSON Database
+# MiniWebPlayer - Electron App with Local JSON Database
 
-This Electron application uses a local JSON file to store and retrieve window position and size settings. Each application instance is uniquely identified by a GUID, allowing multiple instances to run simultaneously without conflicts.
+MiniWebPlayer is an Electron application that uses a local JSON file to store and retrieve window position and size settings. Each application instance is uniquely identified by a GUID, allowing multiple instances to run simultaneously without conflicts.
 
 ## Features
 
@@ -83,9 +83,9 @@ The app creates a JSON file with the following structure:
 
 ## Multi-Instance Support
 
-This application supports multiple instances running simultaneously:
+MiniWebPlayer supports multiple instances running simultaneously:
 
-- **Same Computer**: You can run multiple copies of the app, each with its own window settings
+- **Same Computer**: You can run multiple copies of MiniWebPlayer, each with its own window settings
 - **Different Computers**: Each installation gets a unique GUID, so settings don't conflict
 - **Local Storage**: All instances store data in the local `database.json` file
 - **Portable**: The entire application and its data can be moved between systems
@@ -97,6 +97,6 @@ This application supports multiple instances running simultaneously:
 
 ## Troubleshooting
 
-- If the JSON file becomes corrupted, the app will recreate it with default settings
+- If the JSON file becomes corrupted, MiniWebPlayer will recreate it with default settings
 - Check the console for any file system errors
-- The app gracefully handles missing or corrupted database files by falling back to defaults
+- MiniWebPlayer gracefully handles missing or corrupted database files by falling back to defaults

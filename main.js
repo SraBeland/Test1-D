@@ -143,17 +143,8 @@ const createWindow = async () => {
       mainWindow.setAlwaysOnTop(true, 'screen-saver');
     });
 
-    // Load URL directly if available, otherwise load index.html
-    if (url && url.trim() !== '') {
-      let loadUrl = url.trim();
-      // Add protocol if missing
-      if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
-        loadUrl = 'https://' + loadUrl;
-      }
-      mainWindow.loadURL(loadUrl);
-    } else {
-      mainWindow.loadFile('index.html');
-    }
+    // Always load index.html first for fast display
+    mainWindow.loadFile('index.html');
     
     // Save window position and size when moved or resized
     mainWindow.on('moved', saveWindowSettings);
@@ -437,10 +428,25 @@ app.whenReady().then(async () => {
       mainWindow.show();
       mainWindow.focus();
       
-      // Setup refresh timer after window is displayed
-      setTimeout(() => {
+      // Load the saved URL after window is displayed (if any)
+      setTimeout(async () => {
+        try {
+          const url = await dbManager.getUrl();
+          if (url && url.trim() !== '') {
+            let loadUrl = url.trim();
+            // Add protocol if missing
+            if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
+              loadUrl = 'https://' + loadUrl;
+            }
+            mainWindow.loadURL(loadUrl);
+          }
+        } catch (error) {
+          console.error('Error loading saved URL:', error);
+        }
+        
+        // Setup refresh timer
         setupRefreshTimer();
-      }, 100);
+      }, 500);
     });
 
     app.on('activate', () => {

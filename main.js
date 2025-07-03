@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog, Menu, Tray } = require('electron/main')
+const { app, BrowserWindow, ipcMain, Menu, Tray } = require('electron/main')
 const path = require('node:path')
 const DatabaseManager = require('./database')
 const InstanceManager = require('./instance-manager')
@@ -10,6 +10,7 @@ let loadingWindow;
 let settingsWindow;
 let tray;
 let refreshTimer;
+
 
 const createLoadingWindow = () => {
   loadingWindow = new BrowserWindow({
@@ -30,7 +31,6 @@ const createLoadingWindow = () => {
 
   loadingWindow.loadFile('loading.html');
   
-  // Show loading window immediately
   loadingWindow.once('ready-to-show', () => {
     loadingWindow.show();
     loadingWindow.focus();
@@ -93,26 +93,17 @@ const createSettingsWindow = () => {
 
 const createWindow = async () => {
   try {
-    // Initialize both managers in parallel for faster startup
-    const [instanceManagerResult, ] = await Promise.all([
-      (async () => {
-        instanceManager = new InstanceManager();
-        await instanceManager.initialize();
-        return instanceManager;
-      })(),
-      // Pre-create window with defaults while database loads
-      Promise.resolve()
-    ]);
+    // Initialize instance manager first (required for database)
+    instanceManager = new InstanceManager();
+    await instanceManager.initialize();
     
-    // Initialize database with instance ID
+    // Initialize database and get all startup data in one operation
     dbManager = new DatabaseManager(instanceManager.getInstanceId());
     await dbManager.initialize();
     
-    // Get only essential data for window creation (skip refresh interval for now)
-    const [windowSettings, url] = await Promise.all([
-      dbManager.getWindowSettings(),
-      dbManager.getUrl()
-    ]);
+    // Get all startup data in single database operation
+    const startupData = await dbManager.getStartupData();
+    const { windowSettings, url } = startupData;
     
     mainWindow = new BrowserWindow({
       x: windowSettings.x,
@@ -150,23 +141,17 @@ const createWindow = async () => {
       mainWindow.setAlwaysOnTop(true, 'screen-saver');
     });
 
-    // Load configured URL directly if available, otherwise load index.html
-    try {
-      const url = await dbManager.getUrl();
-      if (url && url.trim() !== '') {
-        let loadUrl = url.trim();
-        // Add protocol if missing
-        if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
-          loadUrl = 'https://' + loadUrl;
-        }
-        console.log(`Loading URL directly at startup: ${loadUrl}`);
-        mainWindow.loadURL(loadUrl);
-      } else {
-        console.log('No URL configured, loading index.html');
-        mainWindow.loadFile('index.html');
+    // Load configured URL directly if available, otherwise load index.html (using data already retrieved)
+    if (url && url.trim() !== '') {
+      let loadUrl = url.trim();
+      // Add protocol if missing
+      if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
+        loadUrl = 'https://' + loadUrl;
       }
-    } catch (error) {
-      console.error('Error loading URL at startup:', error);
+      console.log(`Loading URL directly at startup: ${loadUrl}`);
+      mainWindow.loadURL(loadUrl);
+    } else {
+      console.log('No URL configured, loading index.html');
       mainWindow.loadFile('index.html');
     }
     
@@ -277,84 +262,189 @@ const saveWindowSettings = async () => {
   }
 }
 
+// Optimized window creation using pre-fetched data
+const createOptimizedWindow = async (startupData) => {
+  try {
+    const { windowSettings, url } = startupData;
+    
+    mainWindow = new BrowserWindow({
+      x: windowSettings.x,
+      y: windowSettings.y,
+      width: windowSettings.width,
+      height: windowSettings.height,
+      autoHideMenuBar: true,
+      alwaysOnTop: true,
+      frame: false,
+      roundedCorners: false,
+      transparent: false,
+      backgroundColor: '#ffffff',
+      hasShadow: true,
+      thickFrame: false,
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        enableRemoteModule: false,
+        nodeIntegration: false
+      }
+    })
+
+    // Ensure window stays on top
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    
+    // Re-enforce always on top when window is shown
+    mainWindow.on('show', () => {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      mainWindow.focus();
+    });
+    
+    // Re-enforce always on top when window gains focus
+    mainWindow.on('focus', () => {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    });
+
+    // Load configured URL directly if available, otherwise load index.html
+    if (url && url.trim() !== '') {
+      let loadUrl = url.trim();
+      // Add protocol if missing
+      if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
+        loadUrl = 'https://' + loadUrl;
+      }
+      console.log(`Loading URL directly at startup: ${loadUrl}`);
+      mainWindow.loadURL(loadUrl);
+    } else {
+      console.log('No URL configured, loading index.html');
+      mainWindow.loadFile('index.html');
+    }
+    
+    // Save window position and size when moved or resized
+    mainWindow.on('moved', saveWindowSettings);
+    mainWindow.on('resized', saveWindowSettings);
+    
+    // Save window settings before closing
+    mainWindow.on('close', saveWindowSettings);
+    
+    // Save settings when window is about to be closed
+    mainWindow.on('closed', saveWindowSettings);
+    
+    // Save settings when app is about to quit
+    mainWindow.on('before-quit', saveWindowSettings);
+    
+    // Add context menu handler
+    mainWindow.webContents.on('context-menu', (event, params) => {
+      const isAlwaysOnTop = mainWindow.isAlwaysOnTop();
+      const contextMenu = Menu.buildFromTemplate([
+        {
+          label: isAlwaysOnTop ? '✓ Always on Top' : 'Always on Top',
+          click: () => {
+            const newState = !mainWindow.isAlwaysOnTop();
+            mainWindow.setAlwaysOnTop(newState, newState ? 'screen-saver' : 'normal');
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Close App',
+          click: async () => {
+            await saveWindowSettings();
+            if (dbManager) {
+              await dbManager.close();
+            }
+            app.exit(0);
+          }
+        },
+        {
+          label: 'Refresh Page',
+          click: () => {
+            mainWindow.reload();
+          }
+        },
+        {
+          label: 'Edit Settings',
+          click: () => {
+            createSettingsWindow();
+          }
+        }
+      ]);
+      
+      contextMenu.popup({
+        window: mainWindow,
+        x: params.x,
+        y: params.y
+      });
+    });
+    
+  } catch (error) {
+    console.error('Error creating optimized window:', error);
+    
+    // Fallback to default window
+    mainWindow = new BrowserWindow({
+      width: 800,
+      height: 600,
+      autoHideMenuBar: true,
+      alwaysOnTop: true,
+      frame: false,
+      roundedCorners: false,
+      transparent: false,
+      backgroundColor: '#ffffff',
+      hasShadow: true,
+      thickFrame: false,
+      show: false,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js')
+      }
+    })
+    
+    // Ensure fallback window also stays on top
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    
+    // Re-enforce always on top for fallback window
+    mainWindow.on('show', () => {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+      mainWindow.focus();
+    });
+    
+    mainWindow.on('focus', () => {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    });
+    
+    mainWindow.loadFile('index.html')
+  }
+}
+
 const createTray = () => {
   try {
-    // Use nativeImage to create a simple icon
     const { nativeImage } = require('electron');
     const fs = require('fs');
     
-    // List of possible icon files in order of preference
-    const iconPaths = [
+    let trayIcon;
+    
+    // Try the most likely icon files first (synchronously for performance)
+    const primaryIcons = [
       path.join(__dirname, 'tray-icon.ico'),
-      path.join(__dirname, 'tray-icon.png'),
-      path.join(__dirname, 'tray-icon.svg'),
-      path.join(__dirname, 'icon.ico'),
-      path.join(__dirname, 'icon.png'),
-      path.join(__dirname, 'icon.svg')
+      path.join(__dirname, 'icon.ico')
     ];
     
-    let trayIcon;
-    let iconFound = false;
-    
-    // Try to find and load an icon file
-    for (const iconPath of iconPaths) {
+    // Quick check for primary icons
+    for (const iconPath of primaryIcons) {
       try {
         if (fs.existsSync(iconPath)) {
           trayIcon = nativeImage.createFromPath(iconPath);
           if (!trayIcon.isEmpty()) {
             console.log(`Tray icon loaded from: ${iconPath}`);
-            iconFound = true;
             break;
           }
         }
       } catch (error) {
-        console.log(`Failed to load icon from ${iconPath}:`, error.message);
+        continue; // Try next icon
       }
     }
     
-    // If no icon found, create a simple fallback icon
-    if (!iconFound) {
-      try {
-        // Create a simple 16x16 bitmap manually
-        const width = 16;
-        const height = 16;
-        const channels = 4; // RGBA
-        const buffer = Buffer.alloc(width * height * channels);
-        
-        // Fill with LED pattern
-        for (let y = 0; y < height; y++) {
-          for (let x = 0; x < width; x++) {
-            const index = (y * width + x) * channels;
-            
-            // Default to black background
-            let r = 0, g = 0, b = 0, a = 255;
-            
-            // Create LED border pattern
-            if (x === 0 || x === width - 1 || y === 0 || y === height - 1) {
-              // Orange border
-              r = 255; g = 102; b = 0;
-            } else if ((x >= 6 && x <= 9) && (y >= 6 && y <= 9)) {
-              // Center square
-              r = 255; g = 68; b = 0;
-            } else if ((x + y) % 4 === 0) {
-              // Dim LEDs
-              r = 64; g = 16; b = 0;
-            }
-            
-            buffer[index] = r;     // Red
-            buffer[index + 1] = g; // Green
-            buffer[index + 2] = b; // Blue
-            buffer[index + 3] = a; // Alpha
-          }
-        }
-        
-        trayIcon = nativeImage.createFromBuffer(buffer, { width, height });
-        console.log('Created fallback LED-style tray icon');
-      } catch (error) {
-        // If bitmap creation fails, use empty icon
-        trayIcon = nativeImage.createEmpty();
-        console.log('No custom tray icon found, using system default. See TRAY_ICON_GUIDE.md for setup instructions.');
-      }
+    // If no primary icon found, use empty icon (fastest fallback)
+    if (!trayIcon || trayIcon.isEmpty()) {
+      trayIcon = nativeImage.createEmpty();
+      console.log('Using system default tray icon');
     }
     
     tray = new Tray(trayIcon);
@@ -427,9 +517,29 @@ app.whenReady().then(async () => {
     // Show loading window immediately
     createLoadingWindow();
     
+    // Initialize and get startup data
+    let startupData;
+    try {
+      instanceManager = new InstanceManager();
+      await instanceManager.initialize();
+      
+      dbManager = new DatabaseManager(instanceManager.getInstanceId());
+      await dbManager.initialize();
+      
+      startupData = await dbManager.getStartupData();
+    } catch (error) {
+      console.error('Error during initialization:', error);
+      // Use default startup data
+      startupData = {
+        windowSettings: { x: 100, y: 100, width: 800, height: 600 },
+        url: '',
+        refreshInterval: 0
+      };
+    }
+    
     // Start initialization tasks in parallel
     const initPromises = [
-      createWindow(),
+      createOptimizedWindow(startupData),
       // Create tray in parallel (don't wait for it)
       Promise.resolve().then(() => {
         try {
@@ -448,8 +558,8 @@ app.whenReady().then(async () => {
       mainWindow.show();
       mainWindow.focus();
       
-      // Setup refresh timer only (URL already loaded during window creation)
-      setupRefreshTimer();
+      // Setup refresh timer using already retrieved data
+      setupRefreshTimerWithInterval(startupData.refreshInterval);
     });
 
     // Close loading window only when the webpage content has finished loading
@@ -508,13 +618,11 @@ app.on('window-all-closed', async () => {
 })
 
 // Additional safety net - save settings before app quits
-app.on('before-quit', async (event) => {
-  event.preventDefault();
+app.on('before-quit', async () => {
   await saveWindowSettings();
   if (dbManager) {
     await dbManager.close();
   }
-  app.exit();
 })
 
 // IPC handlers for context menu actions
@@ -668,29 +776,33 @@ ipcMain.handle('get-refresh-interval', async () => {
   return { success: false, error: 'Database manager not available' };
 })
 
-// Function to start/stop refresh timer
-const setupRefreshTimer = async () => {
+// Optimized function to setup refresh timer with known interval (avoids database read)
+const setupRefreshTimerWithInterval = (refreshInterval) => {
   // Clear existing timer
   if (refreshTimer) {
     clearInterval(refreshTimer);
     refreshTimer = null;
   }
   
+  if (mainWindow && refreshInterval > 0) {
+    console.log(`Setting up auto-refresh timer: ${refreshInterval} seconds`);
+    refreshTimer = setInterval(() => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        console.log('Auto-refreshing page...');
+        mainWindow.reload();
+      }
+    }, refreshInterval * 1000);
+  } else {
+    console.log('Auto-refresh disabled (interval = 0)');
+  }
+}
+
+// Function to start/stop refresh timer (for use when interval needs to be fetched)
+const setupRefreshTimer = async () => {
   if (dbManager && mainWindow) {
     try {
       const refreshInterval = await dbManager.getRefreshInterval();
-      
-      if (refreshInterval > 0) {
-        console.log(`Setting up auto-refresh timer: ${refreshInterval} seconds`);
-        refreshTimer = setInterval(() => {
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            console.log('Auto-refreshing page...');
-            mainWindow.reload();
-          }
-        }, refreshInterval * 1000);
-      } else {
-        console.log('Auto-refresh disabled (interval = 0)');
-      }
+      setupRefreshTimerWithInterval(refreshInterval);
     } catch (error) {
       console.error('Error setting up refresh timer:', error);
     }

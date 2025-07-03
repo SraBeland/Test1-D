@@ -146,6 +146,7 @@ class DatabaseManager {
         db.instances[this.instanceId] = {
           systemName: 'Unnamed',
           url: '',
+          refreshInterval: 0,
           windowSettings: {
             x: 100,
             y: 100,
@@ -158,20 +159,58 @@ class DatabaseManager {
         await this.writeDatabase(db);
         console.log(`Default settings created for instance ${this.instanceId}`);
       } else {
-        // Ensure existing instances have the URL field
+        // Ensure existing instances have all required fields
         let needsUpdate = false;
         if (db.instances[this.instanceId].url === undefined) {
           db.instances[this.instanceId].url = '';
           needsUpdate = true;
         }
+        if (db.instances[this.instanceId].refreshInterval === undefined) {
+          db.instances[this.instanceId].refreshInterval = 0;
+          needsUpdate = true;
+        }
         
         if (needsUpdate) {
           await this.writeDatabase(db);
-          console.log(`Updated existing instance ${this.instanceId} with URL field`);
+          console.log(`Updated existing instance ${this.instanceId} with missing fields`);
         }
       }
     } catch (error) {
       console.error('Error ensuring default settings:', error);
+    }
+  }
+
+  // Get all startup data in one operation
+  async getStartupData() {
+    try {
+      const db = await this.readDatabase();
+      const instance = db.instances[this.instanceId];
+      
+      if (instance) {
+        return {
+          windowSettings: instance.windowSettings || { x: 100, y: 100, width: 800, height: 600 },
+          url: instance.url || '',
+          refreshInterval: instance.refreshInterval || 0,
+          systemName: instance.systemName || 'Unnamed'
+        };
+      } else {
+        // Return defaults if instance doesn't exist
+        return {
+          windowSettings: { x: 100, y: 100, width: 800, height: 600 },
+          url: '',
+          refreshInterval: 0,
+          systemName: 'Unnamed'
+        };
+      }
+    } catch (error) {
+      console.error('Error getting startup data:', error);
+      // Return defaults on error
+      return {
+        windowSettings: { x: 100, y: 100, width: 800, height: 600 },
+        url: '',
+        refreshInterval: 0,
+        systemName: 'Unnamed'
+      };
     }
   }
 
@@ -194,17 +233,35 @@ class DatabaseManager {
     }
   }
 
+  // Helper method to ensure instance exists with default values
+  ensureInstanceExists(db) {
+    if (!db.instances[this.instanceId]) {
+      db.instances[this.instanceId] = {
+        systemName: 'Unnamed',
+        url: '',
+        refreshInterval: 0,
+        windowSettings: {
+          x: 100,
+          y: 100,
+          width: 800,
+          height: 600,
+          updatedAt: new Date().toISOString()
+        }
+      };
+    }
+  }
+
+  // Helper method to update timestamp
+  updateTimestamp(db) {
+    if (db.instances[this.instanceId].windowSettings) {
+      db.instances[this.instanceId].windowSettings.updatedAt = new Date().toISOString();
+    }
+  }
+
   async saveWindowSettings(x, y, width, height) {
     try {
       const db = await this.readDatabase();
-      
-      // Ensure instance exists
-      if (!db.instances[this.instanceId]) {
-        db.instances[this.instanceId] = {
-          systemName: 'Unnamed',
-          windowSettings: {}
-        };
-      }
+      this.ensureInstanceExists(db);
       
       // Update window settings
       db.instances[this.instanceId].windowSettings = {
@@ -243,28 +300,10 @@ class DatabaseManager {
   async saveSystemName(systemName) {
     try {
       const db = await this.readDatabase();
+      this.ensureInstanceExists(db);
       
-      // Ensure instance exists
-      if (!db.instances[this.instanceId]) {
-        db.instances[this.instanceId] = {
-          systemName: 'Unnamed',
-          windowSettings: {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            updatedAt: new Date().toISOString()
-          }
-        };
-      }
-      
-      // Update system name
       db.instances[this.instanceId].systemName = systemName;
-      
-      // Update timestamp if window settings exist
-      if (db.instances[this.instanceId].windowSettings) {
-        db.instances[this.instanceId].windowSettings.updatedAt = new Date().toISOString();
-      }
+      this.updateTimestamp(db);
       
       await this.writeDatabase(db);
       console.log(`System name saved for instance ${this.instanceId}: ${systemName}`);
@@ -294,29 +333,10 @@ class DatabaseManager {
   async saveUrl(url) {
     try {
       const db = await this.readDatabase();
+      this.ensureInstanceExists(db);
       
-      // Ensure instance exists
-      if (!db.instances[this.instanceId]) {
-        db.instances[this.instanceId] = {
-          systemName: 'Unnamed',
-          url: '',
-          windowSettings: {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            updatedAt: new Date().toISOString()
-          }
-        };
-      }
-      
-      // Update URL
       db.instances[this.instanceId].url = url;
-      
-      // Update timestamp if window settings exist
-      if (db.instances[this.instanceId].windowSettings) {
-        db.instances[this.instanceId].windowSettings.updatedAt = new Date().toISOString();
-      }
+      this.updateTimestamp(db);
       
       await this.writeDatabase(db);
       console.log(`URL saved for instance ${this.instanceId}: ${url}`);
@@ -346,30 +366,10 @@ class DatabaseManager {
   async saveRefreshInterval(refreshInterval) {
     try {
       const db = await this.readDatabase();
+      this.ensureInstanceExists(db);
       
-      // Ensure instance exists
-      if (!db.instances[this.instanceId]) {
-        db.instances[this.instanceId] = {
-          systemName: 'Unnamed',
-          url: '',
-          refreshInterval: 0,
-          windowSettings: {
-            x: 100,
-            y: 100,
-            width: 800,
-            height: 600,
-            updatedAt: new Date().toISOString()
-          }
-        };
-      }
-      
-      // Update refresh interval
       db.instances[this.instanceId].refreshInterval = refreshInterval;
-      
-      // Update timestamp if window settings exist
-      if (db.instances[this.instanceId].windowSettings) {
-        db.instances[this.instanceId].windowSettings.updatedAt = new Date().toISOString();
-      }
+      this.updateTimestamp(db);
       
       await this.writeDatabase(db);
       console.log(`Refresh interval saved for instance ${this.instanceId}: ${refreshInterval} seconds`);

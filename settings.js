@@ -1,31 +1,91 @@
 // Settings page functionality
 
+// Helper function to show error messages
+const showError = (message) => {
+  console.error(message);
+  alert(`Error: ${message}`);
+};
+
+// Helper function to populate form fields
+const populateFormFields = (settings, url, refreshInterval) => {
+  const elements = {
+    url: document.getElementById('url'),
+    refreshInterval: document.getElementById('refreshInterval'),
+    xPosition: document.getElementById('xPosition'),
+    yPosition: document.getElementById('yPosition'),
+    windowWidth: document.getElementById('windowWidth'),
+    windowHeight: document.getElementById('windowHeight')
+  };
+
+  // Check if all elements exist
+  for (const [key, element] of Object.entries(elements)) {
+    if (!element) {
+      console.warn(`Element with id '${key}' not found`);
+      return false;
+    }
+  }
+
+  // Populate values
+  elements.url.value = url;
+  elements.refreshInterval.value = refreshInterval;
+  elements.xPosition.value = settings.x;
+  elements.yPosition.value = settings.y;
+  elements.windowWidth.value = settings.width;
+  elements.windowHeight.value = settings.height;
+
+  return true;
+};
+
 // Load current settings when page loads
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    // Get current window settings
-    const currentSettings = await window.electronAPI.getCurrentSettings();
+    // Get all settings in parallel
+    const [currentSettings, urlResult, refreshResult] = await Promise.all([
+      window.electronAPI.getCurrentSettings(),
+      window.electronAPI.getUrl(),
+      window.electronAPI.getRefreshInterval()
+    ]);
     
-    // Get current URL
-    const urlResult = await window.electronAPI.getUrl();
     const url = urlResult.success ? urlResult.url : '';
-    
-    // Get current refresh interval
-    const refreshResult = await window.electronAPI.getRefreshInterval();
     const refreshInterval = refreshResult.success ? refreshResult.refreshInterval : 0;
     
-    // Populate form fields with current values
-    document.getElementById('url').value = url;
-    document.getElementById('refreshInterval').value = refreshInterval;
-    document.getElementById('xPosition').value = currentSettings.x;
-    document.getElementById('yPosition').value = currentSettings.y;
-    document.getElementById('windowWidth').value = currentSettings.width;
-    document.getElementById('windowHeight').value = currentSettings.height;
+    // Populate form fields
+    const success = populateFormFields(currentSettings, url, refreshInterval);
+    if (!success) {
+      throw new Error('Failed to populate form fields - some elements are missing');
+    }
     
   } catch (error) {
-    console.error('Error loading current settings:', error);
+    showError(`Failed to load current settings: ${error.message}`);
   }
 });
+
+// Helper function to validate form data
+const validateSettings = (settings) => {
+  const errors = [];
+  
+  if (isNaN(settings.x) || settings.x < -10000 || settings.x > 10000) {
+    errors.push('X position must be a valid number between -10000 and 10000');
+  }
+  
+  if (isNaN(settings.y) || settings.y < -10000 || settings.y > 10000) {
+    errors.push('Y position must be a valid number between -10000 and 10000');
+  }
+  
+  if (isNaN(settings.width) || settings.width < 100 || settings.width > 5000) {
+    errors.push('Width must be a valid number between 100 and 5000');
+  }
+  
+  if (isNaN(settings.height) || settings.height < 100 || settings.height > 5000) {
+    errors.push('Height must be a valid number between 100 and 5000');
+  }
+  
+  if (isNaN(settings.refreshInterval) || settings.refreshInterval < 0 || settings.refreshInterval > 3600) {
+    errors.push('Refresh interval must be a valid number between 0 and 3600 seconds');
+  }
+  
+  return errors;
+};
 
 // Handle form submission (Save)
 document.getElementById('settingsForm').addEventListener('submit', async (e) => {
@@ -41,25 +101,29 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
     refreshInterval: parseInt(formData.get('refreshInterval')) || 0
   };
   
+  // Validate settings
+  const validationErrors = validateSettings(settings);
+  if (validationErrors.length > 0) {
+    showError(`Invalid settings:\n${validationErrors.join('\n')}`);
+    return;
+  }
+  
   try {
-    // Save the window settings, URL, and refresh interval
-    await window.electronAPI.saveSettings(settings);
+    const result = await window.electronAPI.saveSettings(settings);
+    
+    if (result && result.success === false) {
+      throw new Error(result.error || 'Unknown error occurred');
+    }
     
     // Close the settings window after saving
     window.close();
     
   } catch (error) {
-    console.error('Error saving settings:', error);
-    alert('Error saving settings. Please try again.');
+    showError(`Failed to save settings: ${error.message}`);
   }
 });
 
 // Handle cancel button
-document.getElementById('cancelBtn').addEventListener('click', async () => {
-  try {
-    // Close the settings window without saving
-    window.close();
-  } catch (error) {
-    console.error('Error closing settings window:', error);
-  }
+document.getElementById('cancelBtn').addEventListener('click', () => {
+  window.close();
 });

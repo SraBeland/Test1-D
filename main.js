@@ -85,16 +85,26 @@ const createSettingsWindow = () => {
 
 const createWindow = async () => {
   try {
-    // Initialize instance manager first
-    instanceManager = new InstanceManager();
-    await instanceManager.initialize();
+    // Initialize both managers in parallel for faster startup
+    const [instanceManagerResult, ] = await Promise.all([
+      (async () => {
+        instanceManager = new InstanceManager();
+        await instanceManager.initialize();
+        return instanceManager;
+      })(),
+      // Pre-create window with defaults while database loads
+      Promise.resolve()
+    ]);
     
     // Initialize database with instance ID
     dbManager = new DatabaseManager(instanceManager.getInstanceId());
     await dbManager.initialize();
     
-    // Get window settings from database
-    const windowSettings = await dbManager.getWindowSettings();
+    // Get both window settings and URL in one batch
+    const [windowSettings, url] = await Promise.all([
+      dbManager.getWindowSettings(),
+      dbManager.getUrl()
+    ]);
     
     mainWindow = new BrowserWindow({
       x: windowSettings.x,
@@ -133,7 +143,6 @@ const createWindow = async () => {
     });
 
     // Load URL if set, otherwise load index.html
-    const url = await dbManager.getUrl();
     if (url && url.trim() !== '') {
       let loadUrl = url.trim();
       // Add protocol if missing
@@ -402,35 +411,37 @@ app.whenReady().then(async () => {
     // Show loading window immediately
     createLoadingWindow();
     
-    // Create main window in background
-    await createWindow();
+    // Start initialization tasks in parallel
+    const initPromises = [
+      createWindow(),
+      // Create tray in parallel (don't wait for it)
+      Promise.resolve().then(() => {
+        try {
+          createTray();
+        } catch (error) {
+          console.log('Tray creation failed, continuing without tray:', error.message);
+        }
+      })
+    ];
     
-    // Wait for main window to be ready
+    // Wait for main window creation only
+    await initPromises[0];
+    
+    // Show main window as soon as it's ready
     mainWindow.once('ready-to-show', () => {
-      // Close loading window and show main window
+      // Close loading window and show main window immediately
       if (loadingWindow && !loadingWindow.isDestroyed()) {
         loadingWindow.close();
       }
       mainWindow.show();
       mainWindow.focus();
     });
-    
-    // Create tray after window is ready
-    try {
-      createTray();
-    } catch (error) {
-      console.log('Tray creation failed, continuing without tray:', error.message);
-    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        // Show loading window for reactivation too
-        createLoadingWindow();
+        // Skip loading window for reactivation - show main window directly
         createWindow().then(() => {
           mainWindow.once('ready-to-show', () => {
-            if (loadingWindow && !loadingWindow.isDestroyed()) {
-              loadingWindow.close();
-            }
             mainWindow.show();
             mainWindow.focus();
           });

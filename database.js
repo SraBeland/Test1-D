@@ -27,11 +27,8 @@ class DatabaseManager {
       // Ensure database directory exists
       await this.ensureDirectoryExists();
       
-      // Create database file if it doesn't exist
-      await this.ensureDatabaseExists();
-      
-      // Ensure default settings exist for this instance
-      await this.ensureDefaultSettings();
+      // Do all database setup in one operation
+      await this.initializeDatabase();
       
       console.log('JSON database initialized successfully');
     } catch (error) {
@@ -82,6 +79,56 @@ class DatabaseManager {
       await fs.rename(tempPath, this.dbPath);
     } catch (error) {
       console.error('Error writing database:', error);
+      throw error;
+    }
+  }
+
+  async initializeDatabase() {
+    try {
+      let db;
+      let needsWrite = false;
+      
+      // Try to read existing database
+      try {
+        await fs.access(this.dbPath);
+        const data = await fs.readFile(this.dbPath, 'utf8');
+        db = JSON.parse(data);
+      } catch (error) {
+        // File doesn't exist or is corrupted, create new one
+        db = { instances: {} };
+        needsWrite = true;
+        console.log('Created new database structure');
+      }
+      
+      // Ensure instance exists with all required fields
+      if (!db.instances[this.instanceId]) {
+        db.instances[this.instanceId] = {
+          systemName: 'Unnamed',
+          url: '',
+          windowSettings: {
+            x: 100,
+            y: 100,
+            width: 800,
+            height: 600,
+            updatedAt: new Date().toISOString()
+          }
+        };
+        needsWrite = true;
+        console.log(`Default settings created for instance ${this.instanceId}`);
+      } else {
+        // Ensure existing instances have all required fields
+        if (db.instances[this.instanceId].url === undefined) {
+          db.instances[this.instanceId].url = '';
+          needsWrite = true;
+        }
+      }
+      
+      // Write database only if changes were made
+      if (needsWrite) {
+        await this.writeDatabase(db);
+      }
+    } catch (error) {
+      console.error('Error initializing database:', error);
       throw error;
     }
   }

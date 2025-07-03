@@ -550,7 +550,7 @@ app.whenReady().then(async () => {
     mainWindow.loadFile('index.html');
     
     // Ultra-fast URL loading - load directly without database delays  
-    setTimeout(async () => {
+    setImmediate(async () => {
       try {
         console.log('Ultra-fast URL loading starting...');
         

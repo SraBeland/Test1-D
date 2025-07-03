@@ -7,6 +7,7 @@ let dbManager;
 let instanceManager;
 let mainWindow;
 let loadingWindow;
+let settingsWindow;
 let tray;
 
 const createLoadingWindow = () => {
@@ -35,6 +36,50 @@ const createLoadingWindow = () => {
   });
 
   return loadingWindow;
+};
+
+const createSettingsWindow = () => {
+  // Don't create multiple settings windows
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.focus();
+    return settingsWindow;
+  }
+
+  settingsWindow = new BrowserWindow({
+    width: 500,
+    height: 600,
+    frame: true,
+    alwaysOnTop: true,
+    transparent: false,
+    backgroundColor: '#ffffff',
+    hasShadow: true,
+    resizable: true,
+    movable: true,
+    center: true,
+    show: false,
+    title: 'MiniWebPlayer Settings',
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      enableRemoteModule: false,
+      nodeIntegration: false
+    }
+  });
+
+  settingsWindow.loadFile('settings.html');
+  
+  // Show settings window when ready
+  settingsWindow.once('ready-to-show', () => {
+    settingsWindow.show();
+    settingsWindow.focus();
+  });
+
+  // Clean up reference when window is closed
+  settingsWindow.on('closed', () => {
+    settingsWindow = null;
+  });
+
+  return settingsWindow;
 };
 
 const createWindow = async () => {
@@ -145,7 +190,7 @@ const createWindow = async () => {
         {
           label: 'Edit Settings',
           click: () => {
-            mainWindow.loadFile('settings.html');
+            createSettingsWindow();
           }
         }
       ]);
@@ -313,11 +358,7 @@ const createTray = () => {
         {
           label: 'Edit Settings',
           click: () => {
-            if (mainWindow) {
-              mainWindow.loadFile('settings.html');
-              mainWindow.show();
-              mainWindow.focus();
-            }
+            createSettingsWindow();
           }
         },
         {
@@ -451,9 +492,7 @@ ipcMain.handle('refresh-page', () => {
 })
 
 ipcMain.handle('edit-settings', async () => {
-  if (mainWindow) {
-    mainWindow.loadFile('settings.html');
-  }
+  createSettingsWindow();
 })
 
 ipcMain.handle('get-current-settings', async () => {

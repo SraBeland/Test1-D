@@ -56,8 +56,11 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
     // Save the window settings and URL
     await window.electronAPI.saveSettings(settings);
     
-    // The URL will be loaded automatically by the main process
-    // No need to return to main since the URL loading handles the navigation
+    // Show success message briefly then close window
+    alert('Settings saved successfully!');
+    
+    // Close the settings window after saving
+    window.close();
     
   } catch (error) {
     console.error('Error saving settings:', error);
@@ -68,9 +71,9 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
 // Handle cancel button
 document.getElementById('cancelBtn').addEventListener('click', async () => {
   try {
-    // Return to main page without saving
-    await window.electronAPI.returnToMain();
+    // Close the settings window without saving
+    window.close();
   } catch (error) {
-    console.error('Error returning to main page:', error);
+    console.error('Error closing settings window:', error);
   }
 });

@@ -101,7 +101,7 @@ const createWindow = async () => {
     dbManager = new DatabaseManager(instanceManager.getInstanceId());
     await dbManager.initialize();
     
-    // Get both window settings and URL in one batch
+    // Get only essential data for window creation (skip refresh interval for now)
     const [windowSettings, url] = await Promise.all([
       dbManager.getWindowSettings(),
       dbManager.getUrl()
@@ -437,8 +437,10 @@ app.whenReady().then(async () => {
       mainWindow.show();
       mainWindow.focus();
       
-      // Setup refresh timer after window is ready
-      setupRefreshTimer();
+      // Setup refresh timer in background (don't block window display)
+      setTimeout(() => {
+        setupRefreshTimer();
+      }, 100);
     });
 
     app.on('activate', () => {

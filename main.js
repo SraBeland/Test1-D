@@ -105,11 +105,17 @@ const createWindow = async () => {
     const startupData = await dbManager.getStartupData();
     const { windowSettings, url } = startupData;
     
+    // Constrain position to 0-20000, size to 16-20000
+    const x = Math.max(0, Math.min(20000, windowSettings.x));
+    const y = Math.max(0, Math.min(20000, windowSettings.y));
+    const width = Math.max(16, Math.min(20000, windowSettings.width));
+    const height = Math.max(16, Math.min(20000, windowSettings.height));
+    
     mainWindow = new BrowserWindow({
-      x: windowSettings.x,
-      y: windowSettings.y,
-      width: windowSettings.width,
-      height: windowSettings.height,
+      x: x,
+      y: y,
+      width: width,
+      height: height,
       title: 'MiniWebPlayer',
       icon: path.join(__dirname, 'icon.png'),
       autoHideMenuBar: true,
@@ -259,7 +265,12 @@ const saveWindowSettings = async () => {
   if (mainWindow && dbManager) {
     try {
       const bounds = mainWindow.getBounds();
-      await dbManager.saveWindowSettings(bounds.x, bounds.y, bounds.width, bounds.height);
+      // Constrain position to 0-20000, size to 16-20000
+      const x = Math.max(0, Math.min(20000, bounds.x));
+      const y = Math.max(0, Math.min(20000, bounds.y));
+      const width = Math.max(16, Math.min(20000, bounds.width));
+      const height = Math.max(16, Math.min(20000, bounds.height));
+      await dbManager.saveWindowSettings(x, y, width, height);
     } catch (error) {
       console.error('Error saving window settings:', error);
     }
@@ -271,11 +282,17 @@ const createOptimizedWindow = async (startupData) => {
   try {
     const { windowSettings, url } = startupData;
     
+    // Constrain position to 0-20000, size to 16-20000
+    const x = Math.max(0, Math.min(20000, windowSettings.x));
+    const y = Math.max(0, Math.min(20000, windowSettings.y));
+    const width = Math.max(16, Math.min(20000, windowSettings.width));
+    const height = Math.max(16, Math.min(20000, windowSettings.height));
+    
     mainWindow = new BrowserWindow({
-      x: windowSettings.x,
-      y: windowSettings.y,
-      width: windowSettings.width,
-      height: windowSettings.height,
+      x: x,
+      y: y,
+      width: width,
+      height: height,
       autoHideMenuBar: true,
       alwaysOnTop: true,
       frame: false,
@@ -687,7 +704,11 @@ app.whenReady().then(async () => {
         
         // Update window with saved settings
         if (startupData.windowSettings) {
-          const { x, y, width, height } = startupData.windowSettings;
+          // Constrain position to 0-20000, size to 16-20000
+          const x = Math.max(0, Math.min(20000, startupData.windowSettings.x));
+          const y = Math.max(0, Math.min(20000, startupData.windowSettings.y));
+          const width = Math.max(16, Math.min(20000, startupData.windowSettings.width));
+          const height = Math.max(16, Math.min(20000, startupData.windowSettings.height));
           console.log(`Updating window bounds: x=${x}, y=${y}, width=${width}, height=${height}`);
           mainWindow.setBounds({ x, y, width, height });
         }
@@ -861,16 +882,22 @@ ipcMain.handle('get-current-settings', async () => {
 ipcMain.handle('save-settings', async (event, settings) => {
   if (mainWindow && dbManager) {
     try {
+      // Constrain position to 0-20000, size to 16-20000
+      const x = Math.max(0, Math.min(20000, settings.x));
+      const y = Math.max(0, Math.min(20000, settings.y));
+      const width = Math.max(16, Math.min(20000, settings.width));
+      const height = Math.max(16, Math.min(20000, settings.height));
+      
       // Apply the new settings to the window
       mainWindow.setBounds({
-        x: settings.x,
-        y: settings.y,
-        width: settings.width,
-        height: settings.height
+        x: x,
+        y: y,
+        width: width,
+        height: height
       });
       
       // Save to database
-      await dbManager.saveWindowSettings(settings.x, settings.y, settings.width, settings.height);
+      await dbManager.saveWindowSettings(x, y, width, height);
       
       // Save URL if provided
       if (settings.url !== undefined) {

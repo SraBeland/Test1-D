@@ -64,20 +64,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 const validateSettings = (settings) => {
   const errors = [];
   
-  if (isNaN(settings.x) || settings.x < -10000 || settings.x > 10000) {
-    errors.push('X position must be a valid number between -10000 and 10000');
+  if (isNaN(settings.x) || settings.x < -20000 || settings.x > 20000) {
+    errors.push('X position must be a valid number between -20000 and 20000');
   }
   
-  if (isNaN(settings.y) || settings.y < -10000 || settings.y > 10000) {
-    errors.push('Y position must be a valid number between -10000 and 10000');
+  if (isNaN(settings.y) || settings.y < -20000 || settings.y > 20000) {
+    errors.push('Y position must be a valid number between -20000 and 20000');
   }
   
-  if (isNaN(settings.width) || settings.width < 100 || settings.width > 5000) {
-    errors.push('Width must be a valid number between 100 and 5000');
+  if (isNaN(settings.width) || settings.width < 16 || settings.width > 20000) {
+    errors.push('Width must be a valid number between 16 and 20000');
   }
   
-  if (isNaN(settings.height) || settings.height < 100 || settings.height > 5000) {
-    errors.push('Height must be a valid number between 100 and 5000');
+  if (isNaN(settings.height) || settings.height < 16 || settings.height > 20000) {
+    errors.push('Height must be a valid number between 16 and 20000');
   }
   
   if (isNaN(settings.refreshInterval) || settings.refreshInterval < 0 || settings.refreshInterval > 3600) {

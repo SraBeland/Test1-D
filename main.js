@@ -59,8 +59,9 @@ const createWindow = async () => {
       alwaysOnTop: true,
       frame: false,
       roundedCorners: false,
-      transparent: true,
-      hasShadow: false,
+      transparent: false,
+      backgroundColor: '#ffffff',
+      hasShadow: true,
       thickFrame: false,
       show: false,
       webPreferences: {
@@ -167,8 +168,9 @@ const createWindow = async () => {
       alwaysOnTop: true,
       frame: false,
       roundedCorners: false,
-      transparent: true,
-      hasShadow: false,
+      transparent: false,
+      backgroundColor: '#ffffff',
+      hasShadow: true,
       thickFrame: false,
       show: false,
       webPreferences: {

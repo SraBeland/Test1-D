@@ -544,47 +544,63 @@ app.whenReady().then(async () => {
     // Load index.html immediately for fast display
     mainWindow.loadFile('index.html');
     
-    // Initialize everything in background
+    // Quick URL loading - start immediately without waiting for full initialization
     (async () => {
       try {
-        console.log('Starting background initialization...');
+        console.log('Quick URL check starting...');
         
-        instanceManager = new InstanceManager();
-        await instanceManager.initialize();
-        console.log('Instance manager initialized');
+        // Try to get URL quickly first
+        const quickInstanceManager = new InstanceManager();
+        await quickInstanceManager.initialize();
+        const quickDbManager = new DatabaseManager(quickInstanceManager.getInstanceId());
+        await quickDbManager.initialize();
         
-        dbManager = new DatabaseManager(instanceManager.getInstanceId());
-        await dbManager.initialize();
-        console.log('Database manager initialized');
+        // Get just the URL quickly
+        const savedUrl = await quickDbManager.getUrl();
+        console.log('Quick URL retrieved:', savedUrl);
+        
+        // Load URL immediately if it exists
+        if (savedUrl && savedUrl.trim() !== '') {
+          let loadUrl = savedUrl.trim();
+          if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
+            loadUrl = 'https://' + loadUrl;
+          }
+          console.log(`Quick loading URL: ${loadUrl}`);
+          
+          try {
+            await mainWindow.loadURL(loadUrl);
+            console.log('Quick URL loaded successfully');
+            
+            // Store references for later use
+            instanceManager = quickInstanceManager;
+            dbManager = quickDbManager;
+            
+          } catch (urlError) {
+            console.error('Quick URL load failed:', urlError);
+            console.log('Falling back to index.html');
+            mainWindow.loadFile('index.html');
+          }
+        }
+        
+        // Continue with full initialization in background
+        console.log('Starting full background initialization...');
+        
+        // Use existing instances if URL was loaded, otherwise create new ones
+        if (!instanceManager) {
+          instanceManager = quickInstanceManager;
+        }
+        if (!dbManager) {
+          dbManager = quickDbManager;
+        }
         
         const startupData = await dbManager.getStartupData();
-        console.log('Startup data retrieved:', startupData);
+        console.log('Full startup data retrieved:', startupData);
         
         // Update window with saved settings
         if (startupData.windowSettings) {
           const { x, y, width, height } = startupData.windowSettings;
           console.log(`Updating window bounds: x=${x}, y=${y}, width=${width}, height=${height}`);
           mainWindow.setBounds({ x, y, width, height });
-        }
-        
-        // Load saved URL if exists
-        if (startupData.url && startupData.url.trim() !== '') {
-          let loadUrl = startupData.url.trim();
-          if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
-            loadUrl = 'https://' + loadUrl;
-          }
-          console.log(`Loading saved URL: ${loadUrl}`);
-          
-          try {
-            await mainWindow.loadURL(loadUrl);
-            console.log('URL loaded successfully');
-          } catch (urlError) {
-            console.error('Failed to load URL:', urlError);
-            console.log('Falling back to index.html');
-            mainWindow.loadFile('index.html');
-          }
-        } else {
-          console.log('No URL configured, keeping index.html');
         }
         
         // Setup refresh timer

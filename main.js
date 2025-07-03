@@ -49,6 +49,7 @@ const createSettingsWindow = () => {
     width: 500,
     height: 600,
     frame: true,
+    autoHideMenuBar: true,
     alwaysOnTop: true,
     transparent: false,
     backgroundColor: '#ffffff',

@@ -564,30 +564,87 @@ app.whenReady().then(async () => {
         const savedUrl = await quickDbManager.getUrl();
         console.log('URL retrieved:', savedUrl);
         
-        // Load URL directly if it exists
+        // Load URL with fast loading spinner if it exists
         if (savedUrl && savedUrl.trim() !== '') {
           let loadUrl = savedUrl.trim();
           if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
             loadUrl = 'https://' + loadUrl;
           }
-          console.log(`Loading URL directly: ${loadUrl}`);
+          console.log(`Loading URL with spinner: ${loadUrl}`);
+          
+          // Show fast loading page with spinner
+          const loadingHtml = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <title>Loading...</title>
+              <style>
+                body { 
+                  font-family: Arial, sans-serif; 
+                  display: flex; 
+                  justify-content: center; 
+                  align-items: center; 
+                  height: 100vh; 
+                  margin: 0; 
+                  background: #f0f0f0;
+                }
+                .loader { 
+                  text-align: center; 
+                }
+                .spinner { 
+                  border: 4px solid #f3f3f3; 
+                  border-top: 4px solid #3498db; 
+                  border-radius: 50%; 
+                  width: 40px; 
+                  height: 40px; 
+                  animation: spin 1s linear infinite; 
+                  margin: 0 auto 20px; 
+                }
+                @keyframes spin { 
+                  0% { transform: rotate(0deg); } 
+                  100% { transform: rotate(360deg); } 
+                }
+              </style>
+            </head>
+            <body>
+              <div class="loader">
+                <div class="spinner"></div>
+                <div>Loading ${loadUrl}...</div>
+              </div>
+            </body>
+            </html>
+          `;
           
           try {
-            // Load URL directly with timeout
-            const loadPromise = mainWindow.loadURL(loadUrl);
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error('URL load timeout')), 30000);
-            });
+            // Show loading spinner immediately
+            await mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(loadingHtml)}`);
+            console.log('Loading spinner shown');
             
-            await Promise.race([loadPromise, timeoutPromise]);
-            console.log('URL loaded successfully');
-            
-            // Store references for later use
-            instanceManager = quickInstanceManager;
-            dbManager = quickDbManager;
+            // Brief delay to show spinner, then load URL
+            setTimeout(async () => {
+              try {
+                // Load URL with timeout
+                const loadPromise = mainWindow.loadURL(loadUrl);
+                const timeoutPromise = new Promise((_, reject) => {
+                  setTimeout(() => reject(new Error('URL load timeout')), 30000);
+                });
+                
+                await Promise.race([loadPromise, timeoutPromise]);
+                console.log('URL loaded successfully');
+                
+                // Store references for later use
+                instanceManager = quickInstanceManager;
+                dbManager = quickDbManager;
+                
+              } catch (urlError) {
+                console.error('URL load failed:', urlError);
+                console.log('Falling back to index.html');
+                mainWindow.loadFile('index.html');
+              }
+            }, 300); // Very brief 300ms delay to show spinner
             
           } catch (urlError) {
-            console.error('URL load failed:', urlError);
+            console.error('Loading spinner failed:', urlError);
             console.log('Falling back to index.html');
             mainWindow.loadFile('index.html');
           }

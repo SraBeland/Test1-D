@@ -559,10 +559,10 @@ app.whenReady().then(async () => {
     // Load index.html immediately for fast display
     mainWindow.loadFile('index.html');
     
-    // Ultra-fast URL loading - load directly without database delays  
+    // MAXIMUM SPEED URL loading - no delays, no spinners, direct load
     (async () => {
       try {
-        console.log('Ultra-fast URL loading starting...');
+        console.log('MAXIMUM SPEED URL loading starting...');
         
         // Try to get URL with minimal initialization
         const quickInstanceManager = new InstanceManager();
@@ -574,92 +574,28 @@ app.whenReady().then(async () => {
         const savedUrl = await quickDbManager.getUrl();
         console.log('URL retrieved:', savedUrl);
         
-        // Load URL with simple spinner that doesn't interfere
+        // Load URL DIRECTLY with no delays or spinners
         if (savedUrl && savedUrl.trim() !== '') {
           let loadUrl = savedUrl.trim();
           if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
             loadUrl = 'https://' + loadUrl;
           }
-          console.log(`Loading ${loadUrl} with simple spinner`);
-          
-          // Show simple loading spinner first  
-          const loadingHtml = `
-            <!DOCTYPE html>
-            <html>
-            <head>
-              <title>Loading...</title>
-              <style>
-                body { 
-                  font-family: Arial, sans-serif; 
-                  display: flex; 
-                  justify-content: center; 
-                  align-items: center; 
-                  height: 100vh; 
-                  margin: 0; 
-                  background: #f0f0f0;
-                }
-                .loader { 
-                  text-align: center; 
-                }
-                .spinner { 
-                  border: 4px solid #f3f3f3; 
-                  border-top: 4px solid #3498db; 
-                  border-radius: 50%; 
-                  width: 40px; 
-                  height: 40px; 
-                  animation: spin 1s linear infinite; 
-                  margin: 0 auto 20px; 
-                }
-                @keyframes spin { 
-                  0% { transform: rotate(0deg); } 
-                  100% { transform: rotate(360deg); } 
-                }
-              </style>
-            </head>
-            <body>
-              <div class="loader">
-                <div class="spinner"></div>
-                <div>Loading ${loadUrl}...</div>
-              </div>
-            </body>
-            </html>
-          `;
+          console.log(`Loading ${loadUrl} DIRECTLY - maximum speed`);
           
           try {
-            // Show spinner briefly then load URL without interference
-            await mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(loadingHtml)}`);
-            console.log('Loading spinner shown');
+            // DIRECT load - no spinner, no delays, maximum speed
+            console.log('Starting DIRECT URL load...');
+            await mainWindow.loadURL(loadUrl);
+            console.log('URL loaded successfully!');
             
-            // Load URL directly after brief delay - no timeout interference
-            setTimeout(async () => {
-              try {
-                console.log('Starting URL load...');
-                await mainWindow.loadURL(loadUrl); // Direct load without timeout interference
-                console.log('URL loaded successfully!');
-                
-                // Store references for later use
-                instanceManager = quickInstanceManager;
-                dbManager = quickDbManager;
-                
-              } catch (urlError) {
-                console.error('URL load failed:', urlError);
-                console.log('Falling back to index.html');
-                mainWindow.loadFile('index.html');
-              }
-            }, 200); // Very brief delay just to show spinner
+            // Store references for later use
+            instanceManager = quickInstanceManager;
+            dbManager = quickDbManager;
             
-          } catch (error) {
-            console.error('Spinner load failed:', error);
-            console.log('Loading URL directly');
-            try {
-              await mainWindow.loadURL(loadUrl);
-              console.log('Direct URL load successful!');
-              instanceManager = quickInstanceManager;
-              dbManager = quickDbManager;
-            } catch (urlError) {
-              console.error('URL load failed:', urlError);
-              mainWindow.loadFile('index.html');
-            }
+          } catch (urlError) {
+            console.error('URL load failed:', urlError);
+            console.log('Falling back to index.html');
+            mainWindow.loadFile('index.html');
           }
         }
         

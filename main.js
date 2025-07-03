@@ -623,10 +623,10 @@ app.whenReady().then(async () => {
             // Then load the actual URL with timeout
             setTimeout(async () => {
               try {
-                // Set up timeout for URL loading
+                // Set up timeout for URL loading (increased to 30 seconds)
                 const loadPromise = mainWindow.loadURL(loadUrl);
                 const timeoutPromise = new Promise((_, reject) => {
-                  setTimeout(() => reject(new Error('URL load timeout')), 10000); // 10 second timeout
+                  setTimeout(() => reject(new Error('URL load timeout')), 30000); // 30 second timeout
                 });
                 
                 await Promise.race([loadPromise, timeoutPromise]);

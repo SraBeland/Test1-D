@@ -514,7 +514,10 @@ const createTray = () => {
 
 app.whenReady().then(async () => {
   try {
-    // Create main window immediately with default settings for instant display
+    // Show splash screen first for professional startup experience
+    const splashWindow = createLoadingWindow();
+    
+    // Create main window in background while splash is showing
     mainWindow = new BrowserWindow({
       x: 100,
       y: 100,
@@ -528,7 +531,7 @@ app.whenReady().then(async () => {
       backgroundColor: '#ffffff',
       hasShadow: true,
       thickFrame: false,
-      show: true, // Show immediately
+      show: false, // Don't show immediately - show splash first
       webPreferences: {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
@@ -559,10 +562,10 @@ app.whenReady().then(async () => {
     // Load index.html immediately for fast display
     mainWindow.loadFile('index.html');
     
-    // Ultra-fast URL loading - load directly without database delays  
-    (async () => {
+    // Initialize after splash screen is shown (wait 2 seconds)
+    setTimeout(async () => {
       try {
-        console.log('Ultra-fast URL loading starting...');
+        console.log('Starting initialization after splash...');
         
         // Try to get URL with minimal initialization
         const quickInstanceManager = new InstanceManager();
@@ -573,6 +576,12 @@ app.whenReady().then(async () => {
         // Get just the URL quickly
         const savedUrl = await quickDbManager.getUrl();
         console.log('URL retrieved:', savedUrl);
+        
+        // Show main window and close splash
+        mainWindow.show();
+        if (splashWindow && !splashWindow.isDestroyed()) {
+          splashWindow.close();
+        }
         
         // Load URL with simple spinner that doesn't interfere
         if (savedUrl && savedUrl.trim() !== '') {
@@ -661,6 +670,11 @@ app.whenReady().then(async () => {
               mainWindow.loadFile('index.html');
             }
           }
+        } else {
+          // No URL configured, load index.html
+          mainWindow.loadFile('index.html');
+          instanceManager = quickInstanceManager;
+          dbManager = quickDbManager;
         }
         
         // Continue with full initialization in background
@@ -696,7 +710,7 @@ app.whenReady().then(async () => {
         console.error('Background initialization failed:', error);
         console.log('Continuing with default settings');
       }
-    })();
+    }, 2000); // Wait 2 seconds for splash screen
     
     // Create tray in background
     setTimeout(() => {

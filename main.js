@@ -438,7 +438,7 @@ app.whenReady().then(async () => {
             if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
               loadUrl = 'https://' + loadUrl;
             }
-            mainWindow.loadURL(loadUrl);
+            await mainWindow.loadURL(loadUrl);
           }
         } catch (error) {
           console.error('Error loading saved URL:', error);
@@ -446,7 +446,7 @@ app.whenReady().then(async () => {
         
         // Setup refresh timer
         setupRefreshTimer();
-      }, 500);
+      }, 100);
     });
 
     app.on('activate', () => {

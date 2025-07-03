@@ -658,9 +658,14 @@ app.whenReady().then(async () => {
               dbManager = quickDbManager;
             } catch (urlError) {
               console.error('URL load failed:', urlError);
+              console.log('URL load failed, falling back to index.html');
               mainWindow.loadFile('index.html');
             }
           }
+        } else {
+          // No URL configured, load index.html immediately
+          console.log('No URL configured, loading index.html');
+          mainWindow.loadFile('index.html');
         }
         
         // Continue with full initialization in background

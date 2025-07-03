@@ -1,6 +1,6 @@
-# MiniWebPlayer - Electron App with Local JSON Database
+# MiniWebPlayer - Electron App to display a web page on a PC
 
-MiniWebPlayer is an Electron application that uses a local JSON file to store and retrieve window position and size settings. Each application instance is uniquely identified by a GUID, allowing multiple instances to run simultaneously without conflicts.
+MiniWebPlayer is an Electron application that uses a local JSON file to store and retrieve window position and size settings. 
 
 ## Features
 

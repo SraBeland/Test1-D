@@ -143,8 +143,25 @@ const createWindow = async () => {
       mainWindow.setAlwaysOnTop(true, 'screen-saver');
     });
 
-    // Always load index.html first for fast display
-    mainWindow.loadFile('index.html');
+    // Load configured URL directly if available, otherwise load index.html
+    try {
+      const url = await dbManager.getUrl();
+      if (url && url.trim() !== '') {
+        let loadUrl = url.trim();
+        // Add protocol if missing
+        if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
+          loadUrl = 'https://' + loadUrl;
+        }
+        console.log(`Loading URL directly at startup: ${loadUrl}`);
+        mainWindow.loadURL(loadUrl);
+      } else {
+        console.log('No URL configured, loading index.html');
+        mainWindow.loadFile('index.html');
+      }
+    } catch (error) {
+      console.error('Error loading URL at startup:', error);
+      mainWindow.loadFile('index.html');
+    }
     
     // Save window position and size when moved or resized
     mainWindow.on('moved', saveWindowSettings);
@@ -428,25 +445,8 @@ app.whenReady().then(async () => {
       mainWindow.show();
       mainWindow.focus();
       
-      // Load the saved URL after window is displayed (if any)
-      setTimeout(async () => {
-        try {
-          const url = await dbManager.getUrl();
-          if (url && url.trim() !== '') {
-            let loadUrl = url.trim();
-            // Add protocol if missing
-            if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
-              loadUrl = 'https://' + loadUrl;
-            }
-            await mainWindow.loadURL(loadUrl);
-          }
-        } catch (error) {
-          console.error('Error loading saved URL:', error);
-        }
-        
-        // Setup refresh timer
-        setupRefreshTimer();
-      }, 100);
+      // Setup refresh timer only (URL already loaded during window creation)
+      setupRefreshTimer();
     });
 
     app.on('activate', () => {

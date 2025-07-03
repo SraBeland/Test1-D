@@ -514,66 +514,140 @@ const createTray = () => {
 
 app.whenReady().then(async () => {
   try {
-    // Show loading window immediately
-    createLoadingWindow();
+    // Create main window immediately with default settings for instant display
+    mainWindow = new BrowserWindow({
+      x: 100,
+      y: 100,
+      width: 800,
+      height: 600,
+      autoHideMenuBar: true,
+      alwaysOnTop: true,
+      frame: false,
+      roundedCorners: false,
+      transparent: false,
+      backgroundColor: '#ffffff',
+      hasShadow: true,
+      thickFrame: false,
+      show: true, // Show immediately
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        contextIsolation: true,
+        enableRemoteModule: false,
+        nodeIntegration: false
+      }
+    });
+
+    // Ensure window stays on top
+    mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    mainWindow.focus();
     
-    // Initialize and get startup data
-    let startupData;
-    try {
-      instanceManager = new InstanceManager();
-      await instanceManager.initialize();
-      
-      dbManager = new DatabaseManager(instanceManager.getInstanceId());
-      await dbManager.initialize();
-      
-      startupData = await dbManager.getStartupData();
-    } catch (error) {
-      console.error('Error during initialization:', error);
-      // Use default startup data
-      startupData = {
-        windowSettings: { x: 100, y: 100, width: 800, height: 600 },
-        url: '',
-        refreshInterval: 0
-      };
-    }
+    // Load index.html immediately for fast display
+    mainWindow.loadFile('index.html');
     
-    // Start initialization tasks in parallel
-    const initPromises = [
-      createOptimizedWindow(startupData),
-      // Create tray in parallel (don't wait for it)
-      Promise.resolve().then(() => {
-        try {
-          createTray();
-        } catch (error) {
-          console.log('Tray creation failed, continuing without tray:', error.message);
+    // Initialize everything in background
+    (async () => {
+      try {
+        instanceManager = new InstanceManager();
+        await instanceManager.initialize();
+        
+        dbManager = new DatabaseManager(instanceManager.getInstanceId());
+        await dbManager.initialize();
+        
+        const startupData = await dbManager.getStartupData();
+        
+        // Update window with saved settings
+        if (startupData.windowSettings) {
+          const { x, y, width, height } = startupData.windowSettings;
+          mainWindow.setBounds({ x, y, width, height });
         }
-      })
-    ];
+        
+        // Load saved URL if exists
+        if (startupData.url && startupData.url.trim() !== '') {
+          let loadUrl = startupData.url.trim();
+          if (!loadUrl.startsWith('http://') && !loadUrl.startsWith('https://')) {
+            loadUrl = 'https://' + loadUrl;
+          }
+          console.log(`Loading saved URL: ${loadUrl}`);
+          mainWindow.loadURL(loadUrl);
+        }
+        
+        // Setup refresh timer
+        setupRefreshTimerWithInterval(startupData.refreshInterval);
+        
+      } catch (error) {
+        console.error('Background initialization failed:', error);
+      }
+    })();
     
-    // Wait for main window creation only
-    await initPromises[0];
+    // Create tray in background
+    setTimeout(() => {
+      try {
+        createTray();
+      } catch (error) {
+        console.log('Tray creation failed:', error.message);
+      }
+    }, 100);
     
-    // Show main window as soon as it's ready, but keep loading window until webpage loads
-    mainWindow.once('ready-to-show', () => {
-      mainWindow.show();
+    // Setup window event handlers
+    mainWindow.on('show', () => {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
       mainWindow.focus();
+    });
+    
+    mainWindow.on('focus', () => {
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    });
+    
+    // Save window position and size when moved or resized
+    mainWindow.on('moved', saveWindowSettings);
+    mainWindow.on('resized', saveWindowSettings);
+    mainWindow.on('close', saveWindowSettings);
+    mainWindow.on('closed', saveWindowSettings);
+    mainWindow.on('before-quit', saveWindowSettings);
+    
+    // Add context menu handler
+    mainWindow.webContents.on('context-menu', (event, params) => {
+      const isAlwaysOnTop = mainWindow.isAlwaysOnTop();
+      const contextMenu = Menu.buildFromTemplate([
+        {
+          label: isAlwaysOnTop ? '✓ Always on Top' : 'Always on Top',
+          click: () => {
+            const newState = !mainWindow.isAlwaysOnTop();
+            mainWindow.setAlwaysOnTop(newState, newState ? 'screen-saver' : 'normal');
+          }
+        },
+        {
+          type: 'separator'
+        },
+        {
+          label: 'Close App',
+          click: async () => {
+            await saveWindowSettings();
+            if (dbManager) {
+              await dbManager.close();
+            }
+            app.exit(0);
+          }
+        },
+        {
+          label: 'Refresh Page',
+          click: () => {
+            mainWindow.reload();
+          }
+        },
+        {
+          label: 'Edit Settings',
+          click: () => {
+            createSettingsWindow();
+          }
+        }
+      ]);
       
-      // Setup refresh timer using already retrieved data
-      setupRefreshTimerWithInterval(startupData.refreshInterval);
-    });
-
-    // Close loading window only when the webpage content has finished loading
-    mainWindow.webContents.once('did-finish-load', () => {
-      if (loadingWindow && !loadingWindow.isDestroyed()) {
-        loadingWindow.close();
-      }
-    });
-
-    // Also close loading window on navigation failure
-    mainWindow.webContents.once('did-fail-load', () => {
-      if (loadingWindow && !loadingWindow.isDestroyed()) {
-        loadingWindow.close();
-      }
+      contextMenu.popup({
+        window: mainWindow,
+        x: params.x,
+        y: params.y
+      });
     });
 
     app.on('activate', () => {

@@ -10,8 +10,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const urlResult = await window.electronAPI.getUrl();
     const url = urlResult.success ? urlResult.url : '';
     
+    // Get current refresh interval
+    const refreshResult = await window.electronAPI.getRefreshInterval();
+    const refreshInterval = refreshResult.success ? refreshResult.refreshInterval : 0;
+    
     // Populate form fields with current values
     document.getElementById('url').value = url;
+    document.getElementById('refreshInterval').value = refreshInterval;
     document.getElementById('xPosition').value = currentSettings.x;
     document.getElementById('yPosition').value = currentSettings.y;
     document.getElementById('windowWidth').value = currentSettings.width;
@@ -32,11 +37,12 @@ document.getElementById('settingsForm').addEventListener('submit', async (e) => 
     y: parseInt(formData.get('y')),
     width: parseInt(formData.get('width')),
     height: parseInt(formData.get('height')),
-    url: formData.get('url').trim()
+    url: formData.get('url').trim(),
+    refreshInterval: parseInt(formData.get('refreshInterval')) || 0
   };
   
   try {
-    // Save the window settings and URL
+    // Save the window settings, URL, and refresh interval
     await window.electronAPI.saveSettings(settings);
     
     // Close the settings window after saving

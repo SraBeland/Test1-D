@@ -9,6 +9,7 @@ let mainWindow;
 let loadingWindow;
 let settingsWindow;
 let tray;
+let refreshTimer;
 
 const createLoadingWindow = () => {
   loadingWindow = new BrowserWindow({
@@ -435,6 +436,9 @@ app.whenReady().then(async () => {
       }
       mainWindow.show();
       mainWindow.focus();
+      
+      // Setup refresh timer after window is ready
+      setupRefreshTimer();
     });
 
     app.on('activate', () => {
@@ -551,6 +555,14 @@ ipcMain.handle('save-settings', async (event, settings) => {
         }
       }
       
+      // Save refresh interval if provided
+      if (settings.refreshInterval !== undefined) {
+        await dbManager.saveRefreshInterval(settings.refreshInterval);
+        
+        // Setup the new refresh timer
+        await setupRefreshTimer();
+      }
+      
       return { success: true };
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -617,3 +629,45 @@ ipcMain.handle('get-url', async () => {
   }
   return { success: false, error: 'Database manager not available' };
 })
+
+ipcMain.handle('get-refresh-interval', async () => {
+  if (dbManager) {
+    try {
+      const refreshInterval = await dbManager.getRefreshInterval();
+      return { success: true, refreshInterval };
+    } catch (error) {
+      console.error('Error getting refresh interval:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  return { success: false, error: 'Database manager not available' };
+})
+
+// Function to start/stop refresh timer
+const setupRefreshTimer = async () => {
+  // Clear existing timer
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+  
+  if (dbManager && mainWindow) {
+    try {
+      const refreshInterval = await dbManager.getRefreshInterval();
+      
+      if (refreshInterval > 0) {
+        console.log(`Setting up auto-refresh timer: ${refreshInterval} seconds`);
+        refreshTimer = setInterval(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            console.log('Auto-refreshing page...');
+            mainWindow.reload();
+          }
+        }, refreshInterval * 1000);
+      } else {
+        console.log('Auto-refresh disabled (interval = 0)');
+      }
+    } catch (error) {
+      console.error('Error setting up refresh timer:', error);
+    }
+  }
+}

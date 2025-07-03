@@ -16,5 +16,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   returnToMain: () => ipcRenderer.invoke('return-to-main'),
   getSystemName: () => ipcRenderer.invoke('get-system-name'),
   saveSystemName: (systemName) => ipcRenderer.invoke('save-system-name', systemName),
-  getUrl: () => ipcRenderer.invoke('get-url')
+  getUrl: () => ipcRenderer.invoke('get-url'),
+  getRefreshInterval: () => ipcRenderer.invoke('get-refresh-interval')
 })

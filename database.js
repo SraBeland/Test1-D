@@ -105,6 +105,7 @@ class DatabaseManager {
         db.instances[this.instanceId] = {
           systemName: 'Unnamed',
           url: '',
+          refreshInterval: 0,
           windowSettings: {
             x: 100,
             y: 100,
@@ -119,6 +120,10 @@ class DatabaseManager {
         // Ensure existing instances have all required fields
         if (db.instances[this.instanceId].url === undefined) {
           db.instances[this.instanceId].url = '';
+          needsWrite = true;
+        }
+        if (db.instances[this.instanceId].refreshInterval === undefined) {
+          db.instances[this.instanceId].refreshInterval = 0;
           needsWrite = true;
         }
       }
@@ -317,6 +322,59 @@ class DatabaseManager {
       console.log(`URL saved for instance ${this.instanceId}: ${url}`);
     } catch (error) {
       console.error('Error saving URL:', error);
+    }
+  }
+
+  async getRefreshInterval() {
+    try {
+      const db = await this.readDatabase();
+      const instance = db.instances[this.instanceId];
+      
+      if (instance && instance.refreshInterval !== undefined) {
+        return instance.refreshInterval;
+      } else {
+        // Return 0 (disabled) if no refresh interval found
+        return 0;
+      }
+    } catch (error) {
+      console.error('Error getting refresh interval:', error);
+      // Return 0 (disabled) on error
+      return 0;
+    }
+  }
+
+  async saveRefreshInterval(refreshInterval) {
+    try {
+      const db = await this.readDatabase();
+      
+      // Ensure instance exists
+      if (!db.instances[this.instanceId]) {
+        db.instances[this.instanceId] = {
+          systemName: 'Unnamed',
+          url: '',
+          refreshInterval: 0,
+          windowSettings: {
+            x: 100,
+            y: 100,
+            width: 800,
+            height: 600,
+            updatedAt: new Date().toISOString()
+          }
+        };
+      }
+      
+      // Update refresh interval
+      db.instances[this.instanceId].refreshInterval = refreshInterval;
+      
+      // Update timestamp if window settings exist
+      if (db.instances[this.instanceId].windowSettings) {
+        db.instances[this.instanceId].windowSettings.updatedAt = new Date().toISOString();
+      }
+      
+      await this.writeDatabase(db);
+      console.log(`Refresh interval saved for instance ${this.instanceId}: ${refreshInterval} seconds`);
+    } catch (error) {
+      console.error('Error saving refresh interval:', error);
     }
   }
 

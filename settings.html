@@ -106,8 +106,14 @@
       
       <form id="settingsForm">
         <div class="form-group">
-          <label for="url">URL (leave empty for default page):</label>
-          <input type="text" id="url" name="url" placeholder="https://example.com">
+          <label for="url">URL:</label>
+          <input type="text" id="url" name="url" placeholder="Enter URL (e.g., example.com)">
+        </div>
+        
+        <div class="form-group">
+          <label for="refreshInterval">Force Refresh (seconds):</label>
+          <input type="number" id="refreshInterval" name="refreshInterval" min="0" max="3600" placeholder="0 = disabled, >0 = refresh interval">
+          <small>Set to 0 to disable automatic refresh, or enter seconds (1-3600) for auto-refresh interval</small>
         </div>
         
         <div class="form-group">

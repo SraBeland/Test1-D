@@ -539,8 +539,18 @@ app.whenReady().then(async () => {
       }
     });
 
-    // Set user agent to prevent bot blocking
-    mainWindow.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    // Set more realistic user agent and optimize loading
+    mainWindow.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0');
+    
+    // Add request headers to improve loading speed
+    mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+      details.requestHeaders['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8';
+      details.requestHeaders['Accept-Language'] = 'en-US,en;q=0.9';
+      details.requestHeaders['Accept-Encoding'] = 'gzip, deflate, br';
+      details.requestHeaders['Cache-Control'] = 'max-age=0';
+      details.requestHeaders['Upgrade-Insecure-Requests'] = '1';
+      callback({ cancel: false, requestHeaders: details.requestHeaders });
+    });
 
     // Ensure window stays on top
     mainWindow.setAlwaysOnTop(true, 'screen-saver');
@@ -623,10 +633,10 @@ app.whenReady().then(async () => {
             // Brief delay to show spinner, then load URL
             setTimeout(async () => {
               try {
-                // Load URL with timeout
+                // Load URL with shorter timeout for faster fallback
                 const loadPromise = mainWindow.loadURL(loadUrl);
                 const timeoutPromise = new Promise((_, reject) => {
-                  setTimeout(() => reject(new Error('URL load timeout')), 30000);
+                  setTimeout(() => reject(new Error('URL load timeout')), 10000); // Reduced to 10 seconds
                 });
                 
                 await Promise.race([loadPromise, timeoutPromise]);

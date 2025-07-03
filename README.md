@@ -11,7 +11,17 @@ This Electron application uses a local JSON file to store and retrieve window po
 - **Multi-instance support** - multiple copies can run on different computers
 - **System tray integration** - right-click context menu and tray icon
 - **URL loading capability** - load external websites instead of default page
+- **Configurable window constraints** - position and size limits for safe window placement
 - No external database server required
+
+## Window Configuration Limits
+
+The application enforces the following constraints to ensure windows remain usable and visible:
+
+- **Window Position (X, Y)**: 0 to 30,000 pixels
+- **Window Size (Width, Height)**: 16 to 26,000 pixels
+
+These limits prevent windows from being positioned off-screen or sized too small to be functional, while allowing flexibility for large multi-monitor setups.
 
 ## Setup Instructions
 
